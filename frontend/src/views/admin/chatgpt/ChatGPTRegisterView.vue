@@ -163,7 +163,6 @@ import { ref, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import { useChatGPTRegisterStore } from '@/stores/chatgpt'
-import { applyStoredConnection } from '@/api/chatgpt'
 import ChatGPTConnectionSettings from './components/ChatGPTConnectionSettings.vue'
 
 const { t } = useI18n()
@@ -172,10 +171,6 @@ const store = useChatGPTRegisterStore()
 const showConnectionDialog = ref(false)
 
 onMounted(() => {
-  if (!applyStoredConnection()) {
-    showConnectionDialog.value = true
-    return
-  }
   store.load()
   store.startSSE()
 })

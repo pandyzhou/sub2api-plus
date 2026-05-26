@@ -252,7 +252,6 @@ import { ref, onMounted, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import { useChatGPTAccountsStore } from '@/stores/chatgpt'
-import { applyStoredConnection } from '@/api/chatgpt'
 import ChatGPTConnectionSettings from './components/ChatGPTConnectionSettings.vue'
 
 const { t } = useI18n()
@@ -273,10 +272,6 @@ const statCards = computed(() => [
 ])
 
 onMounted(() => {
-  if (!applyStoredConnection()) {
-    showConnectionDialog.value = true
-    return
-  }
   store.load()
 })
 

@@ -6995,6 +6995,7 @@ export default {
     connection: {
       title: 'Connect to chatgpt2api',
       description: 'Enter the chatgpt2api server URL and admin key to connect to the ChatGPT account management system',
+      nativeDescription: 'ChatGPT account pool management is built into sub2api — no external service needed',
       baseURL: 'API URL',
       authKey: 'Admin Key',
       test: 'Test Connection',

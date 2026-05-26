@@ -7177,6 +7177,7 @@ export default {
     connection: {
       title: '连接 chatgpt2api',
       description: '请输入 chatgpt2api 服务地址和管理员密钥以连接到 ChatGPT 账号管理系统',
+      nativeDescription: 'ChatGPT 号池管理已内置到 sub2api，无需外部服务',
       baseURL: 'API 地址',
       authKey: 'Admin Key',
       test: '测试连接',

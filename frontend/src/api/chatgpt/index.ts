@@ -1,26 +1,15 @@
 /**
- * chatgpt2api API Module
+ * ChatGPT Account Pool API Module
  *
- * Provides HTTP clients and API methods for communicating with
- * the chatgpt2api Python backend (ChatGPT account pool management
- * and automated account registration machine).
+ * Uses sub2api's native Go backend for account management.
+ * No external chatgpt2api dependency required.
  */
 
 // Client & connection management
 export {
-  chatgptClient,
-  getChatGPTBaseURL,
-  setChatGPTBaseURL,
-  getChatGPTAuthKey,
-  setChatGPTAuthKey,
-  loadConnectionConfig,
-  saveConnectionConfig,
-  clearConnectionConfig,
-  applyStoredConnection,
   testConnection,
+  applyStoredConnection,
 } from './client'
-
-export type { ChatGPTConnectionConfig } from './client'
 
 // Account management APIs
 export {
@@ -34,12 +23,9 @@ export {
 
 export type {
   ChatGPTAccount,
-  ChatGPTAccountType,
-  ChatGPTAccountStatus,
   ChatGPTAccountListResponse,
   ChatGPTAccountMutationResponse,
-  ChatGPTAccountImportPayload,
-} from './accounts'
+} from './client'
 
 // Registration machine APIs
 export {
@@ -55,5 +41,4 @@ export type {
   RegisterConfig,
   RegisterMode,
   RegisterUpdatePayload,
-  RegisterMailProvider,
 } from './register'

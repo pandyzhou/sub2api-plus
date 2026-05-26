@@ -20,7 +20,6 @@ import {
   type RegisterMode,
   type RegisterUpdatePayload,
 } from '@/api/chatgpt'
-import { getChatGPTAuthKey, getChatGPTBaseURL } from '@/api/chatgpt/client'
 
 export const useChatGPTRegisterStore = defineStore('chatgptRegister', () => {
   // ==================== State ====================
@@ -141,11 +140,8 @@ export const useChatGPTRegisterStore = defineStore('chatgptRegister', () => {
 
   function startSSE(): void {
     stopSSE()
-    const token = getChatGPTAuthKey()
-    const baseURL = getChatGPTBaseURL()
-    if (!token) return
 
-    eventSource = createRegisterEventSource(token, baseURL)
+    eventSource = createRegisterEventSource()
     eventSource.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data) as RegisterConfig
