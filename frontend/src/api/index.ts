@@ -24,5 +24,8 @@ export { channelMonitorUserAPI } from './channelMonitor'
 // Admin APIs
 export { adminAPI } from './admin'
 
+// ChatGPT integration APIs
+export * as chatgptAPI from './chatgpt'
+
 // Default export
 export { default } from './client'

@@ -488,6 +488,29 @@ const routes: RouteRecordRaw[] = [
       descriptionKey: 'admin.accounts.description'
     }
   },
+  // ChatGPT tools (chatgpt2api integration)
+  {
+    path: '/admin/chatgpt/accounts',
+    name: 'ChatGPTAccounts',
+    component: () => import('@/views/admin/chatgpt/ChatGPTAccountsView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: true,
+      title: 'ChatGPT Account Management',
+      titleKey: 'chatgpt.accounts.title',
+    }
+  },
+  {
+    path: '/admin/chatgpt/register',
+    name: 'ChatGPTRegister',
+    component: () => import('@/views/admin/chatgpt/ChatGPTRegisterView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: true,
+      title: 'ChatGPT Registration Machine',
+      titleKey: 'chatgpt.register.title',
+    }
+  },
   {
     path: '/admin/announcements',
     name: 'AdminAnnouncements',
