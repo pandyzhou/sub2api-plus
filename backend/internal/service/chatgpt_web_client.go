@@ -313,7 +313,7 @@ func chatGPTWebExtractText(raw json.RawMessage) string {
 		var b strings.Builder
 		for _, part := range parts {
 			if part.Type == "text" {
-				b.WriteString(part.Text)
+				_, _ = b.WriteString(part.Text)
 			}
 		}
 		return b.String()
