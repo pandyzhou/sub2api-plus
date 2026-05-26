@@ -661,7 +661,7 @@ func (s *ChatGPTRegisterService) exchangeTokens(ctx context.Context, email, pass
 		RefreshToken string `json:"refresh_token"`
 		IDToken      string `json:"id_token"`
 	}
-	if err := func() { _ = json.NewDecoder(resp.Body).Decode(&data) }(); err != nil {
+	if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
 		return nil, err
 	}
 	if data.AccessToken == "" || data.RefreshToken == "" {
