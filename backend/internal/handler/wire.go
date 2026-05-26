@@ -186,7 +186,8 @@ var ProviderSet = wire.NewSet(
 	admin.NewContentModerationHandler,
 	admin.NewPaymentHandler,
 	admin.NewAffiliateHandler,
-	admin.NewChatGPTAccountHandler,
+
+	// ChatGPTAccountHandler is constructed inline in wire_gen.go
 
 	// AdminHandlers and Handlers constructors
 	ProvideAdminHandlers,

@@ -13,12 +13,13 @@ import (
 
 // ChatGPTAccountHandler manages ChatGPT Web OAuth accounts as a pooled resource.
 type ChatGPTAccountHandler struct {
-	accountRepo service.AccountRepository
+	accountRepo   service.AccountRepository
+	registerSvc   *service.ChatGPTRegisterService
 }
 
 // NewChatGPTAccountHandler creates a new ChatGPT account handler.
-func NewChatGPTAccountHandler(accountRepo service.AccountRepository) *ChatGPTAccountHandler {
-	return &ChatGPTAccountHandler{accountRepo: accountRepo}
+func NewChatGPTAccountHandler(accountRepo service.AccountRepository, registerSvc *service.ChatGPTRegisterService) *ChatGPTAccountHandler {
+	return &ChatGPTAccountHandler{accountRepo: accountRepo, registerSvc: registerSvc}
 }
 
 // ListAccounts returns all ChatGPT Web accounts.
@@ -208,33 +209,56 @@ func (h *ChatGPTAccountHandler) ExportAccounts(c *gin.Context) {
 // RegisterConfig returns register machine configuration.
 // GET /api/v1/admin/chatgpt/register
 func (h *ChatGPTAccountHandler) RegisterConfig(c *gin.Context) {
-	response.Success(c, gin.H{
-		"register": map[string]any{
-			"enabled": false,
-			"mode":    "total",
-			"total":   1,
-			"threads": 1,
-			"stats":   map[string]any{"success": 0, "fail": 0, "done": 0, "running": 0},
-		},
-	})
+	if h.registerSvc == nil {
+		response.Error(c, 503, "register service not available")
+		return
+	}
+	response.Success(c, h.registerSvc.Get())
+}
+
+// UpdateRegisterConfig updates register machine configuration.
+// POST /api/v1/admin/chatgpt/register
+func (h *ChatGPTAccountHandler) UpdateRegisterConfig(c *gin.Context) {
+	if h.registerSvc == nil {
+		response.Error(c, 503, "register service not available")
+		return
+	}
+	var body map[string]any
+	if err := c.ShouldBindJSON(&body); err != nil {
+		response.BadRequest(c, "invalid request body")
+		return
+	}
+	response.Success(c, h.registerSvc.Update(body))
 }
 
 // StartRegister starts the registration process.
 // POST /api/v1/admin/chatgpt/register/start
 func (h *ChatGPTAccountHandler) StartRegister(c *gin.Context) {
-	response.Error(c, 501, "register machine not yet implemented in Go backend")
+	if h.registerSvc == nil {
+		response.Error(c, 503, "register service not available")
+		return
+	}
+	response.Success(c, h.registerSvc.Start())
 }
 
 // StopRegister stops the registration process.
 // POST /api/v1/admin/chatgpt/register/stop
 func (h *ChatGPTAccountHandler) StopRegister(c *gin.Context) {
-	response.Error(c, 501, "register machine not yet implemented in Go backend")
+	if h.registerSvc == nil {
+		response.Error(c, 503, "register service not available")
+		return
+	}
+	response.Success(c, h.registerSvc.Stop())
 }
 
 // ResetRegister resets the registration stats.
 // POST /api/v1/admin/chatgpt/register/reset
 func (h *ChatGPTAccountHandler) ResetRegister(c *gin.Context) {
-	response.Error(c, 501, "register machine not yet implemented in Go backend")
+	if h.registerSvc == nil {
+		response.Error(c, 503, "register service not available")
+		return
+	}
+	response.Success(c, h.registerSvc.Reset())
 }
 
 // ---- internal helpers ----

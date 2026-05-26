@@ -661,6 +661,7 @@ func registerChatGPTRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 		chatgpt.POST("/accounts/update", h.Admin.ChatGPTAccount.UpdateAccount)
 		chatgpt.POST("/accounts/export", h.Admin.ChatGPTAccount.ExportAccounts)
 		chatgpt.GET("/register", h.Admin.ChatGPTAccount.RegisterConfig)
+		chatgpt.POST("/register", h.Admin.ChatGPTAccount.UpdateRegisterConfig)
 		chatgpt.POST("/register/start", h.Admin.ChatGPTAccount.StartRegister)
 		chatgpt.POST("/register/stop", h.Admin.ChatGPTAccount.StopRegister)
 		chatgpt.POST("/register/reset", h.Admin.ChatGPTAccount.ResetRegister)
