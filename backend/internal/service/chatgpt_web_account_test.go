@@ -4,10 +4,10 @@ import "testing"
 
 func TestAccountOpenAIBackendMode(t *testing.T) {
 	tests := []struct {
-		name      string
-		account   *Account
-		wantMode  OpenAIBackendMode
-		wantWeb   bool
+		name     string
+		account  *Account
+		wantMode OpenAIBackendMode
+		wantWeb  bool
 	}{
 		{
 			name:     "non-openai platform returns any",

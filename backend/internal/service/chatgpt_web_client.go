@@ -97,7 +97,7 @@ func (c *ChatGPTWebClient) bootstrap(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	body, _ := io.ReadAll(io.LimitReader(resp.Body, 4<<20))
 	if resp.StatusCode >= 400 {
 		return fmt.Errorf("chatgpt bootstrap failed: HTTP %d", resp.StatusCode)
@@ -127,32 +127,32 @@ func (c *ChatGPTWebClient) bootstrapHeaders() map[string]string {
 
 func (c *ChatGPTWebClient) headers(path string, extra map[string]string) map[string]string {
 	h := map[string]string{
-		"User-Agent":                 c.userAgent,
-		"Origin":                     chatGPTWebBaseURL,
-		"Referer":                    chatGPTWebBaseURL + "/",
-		"Accept-Language":            "zh-CN,zh;q=0.9,en;q=0.8,en-US;q=0.7",
-		"Cache-Control":              "no-cache",
-		"Pragma":                     "no-cache",
-		"Priority":                   "u=1, i",
-		"Sec-Ch-Ua":                  `"Microsoft Edge";v="143", "Chromium";v="143", "Not A(Brand";v="24"`,
-		"Sec-Ch-Ua-Arch":             `"x86"`,
-		"Sec-Ch-Ua-Bitness":          `"64"`,
-		"Sec-Ch-Ua-Full-Version":     `"143.0.3650.96"`,
+		"User-Agent":                  c.userAgent,
+		"Origin":                      chatGPTWebBaseURL,
+		"Referer":                     chatGPTWebBaseURL + "/",
+		"Accept-Language":             "zh-CN,zh;q=0.9,en;q=0.8,en-US;q=0.7",
+		"Cache-Control":               "no-cache",
+		"Pragma":                      "no-cache",
+		"Priority":                    "u=1, i",
+		"Sec-Ch-Ua":                   `"Microsoft Edge";v="143", "Chromium";v="143", "Not A(Brand";v="24"`,
+		"Sec-Ch-Ua-Arch":              `"x86"`,
+		"Sec-Ch-Ua-Bitness":           `"64"`,
+		"Sec-Ch-Ua-Full-Version":      `"143.0.3650.96"`,
 		"Sec-Ch-Ua-Full-Version-List": `"Microsoft Edge";v="143.0.3650.96", "Chromium";v="143.0.7499.147", "Not A(Brand";v="24.0.0.0"`,
-		"Sec-Ch-Ua-Mobile":           "?0",
-		"Sec-Ch-Ua-Model":            `""`,
-		"Sec-Ch-Ua-Platform":         `"Windows"`,
-		"Sec-Ch-Ua-Platform-Version": `"19.0.0"`,
-		"Sec-Fetch-Dest":             "empty",
-		"Sec-Fetch-Mode":             "cors",
-		"Sec-Fetch-Site":             "same-origin",
-		"OAI-Device-Id":              c.deviceID,
-		"OAI-Session-Id":             c.sessionID,
-		"OAI-Language":               "zh-CN",
-		"OAI-Client-Version":         chatGPTWebClientVersion,
-		"OAI-Client-Build-Number":    chatGPTWebClientBuildNumber,
-		"X-OpenAI-Target-Path":       path,
-		"X-OpenAI-Target-Route":      path,
+		"Sec-Ch-Ua-Mobile":            "?0",
+		"Sec-Ch-Ua-Model":             `""`,
+		"Sec-Ch-Ua-Platform":          `"Windows"`,
+		"Sec-Ch-Ua-Platform-Version":  `"19.0.0"`,
+		"Sec-Fetch-Dest":              "empty",
+		"Sec-Fetch-Mode":              "cors",
+		"Sec-Fetch-Site":              "same-origin",
+		"OAI-Device-Id":               c.deviceID,
+		"OAI-Session-Id":              c.sessionID,
+		"OAI-Language":                "zh-CN",
+		"OAI-Client-Version":          chatGPTWebClientVersion,
+		"OAI-Client-Build-Number":     chatGPTWebClientBuildNumber,
+		"X-OpenAI-Target-Path":        path,
+		"X-OpenAI-Target-Route":       path,
 	}
 	if strings.TrimSpace(c.accessToken) != "" {
 		h["Authorization"] = "Bearer " + c.accessToken
@@ -179,7 +179,7 @@ func (c *ChatGPTWebClient) getChatRequirements(ctx context.Context) (*chatGPTWeb
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	body, _ := io.ReadAll(io.LimitReader(resp.Body, 2<<20))
 	if resp.StatusCode >= 400 {
 		return nil, fmt.Errorf("chat requirements failed: HTTP %d: %s", resp.StatusCode, truncateString(string(body), 300))
@@ -217,8 +217,8 @@ func (c *ChatGPTWebClient) StreamConversation(ctx context.Context, messages []ap
 		return err
 	}
 	extra := map[string]string{
-		"Accept":                                  "text/event-stream",
-		"Content-Type":                            "application/json",
+		"Accept":       "text/event-stream",
+		"Content-Type": "application/json",
 		"OpenAI-Sentinel-Chat-Requirements-Token": reqInfo.Token,
 	}
 	if reqInfo.ProofToken != "" {
@@ -242,7 +242,7 @@ func (c *ChatGPTWebClient) StreamConversation(ctx context.Context, messages []ap
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode >= 400 {
 		body, _ := io.ReadAll(io.LimitReader(resp.Body, 2<<20))
 		return fmt.Errorf("chatgpt conversation failed: HTTP %d: %s", resp.StatusCode, truncateString(string(body), 300))
@@ -252,16 +252,16 @@ func (c *ChatGPTWebClient) StreamConversation(ctx context.Context, messages []ap
 
 func (c *ChatGPTWebClient) buildConversationPayload(messages []apicompat.ChatMessage, model string) map[string]any {
 	return map[string]any{
-		"action":                      "next",
-		"messages":                    chatGPTWebConversationMessages(messages),
-		"model":                       strings.TrimSpace(model),
-		"parent_message_id":           uuid.NewString(),
-		"conversation_mode":           map[string]any{"kind": "primary_assistant"},
-		"conversation_origin":         nil,
-		"force_paragen":               false,
-		"force_paragen_model_slug":    "",
-		"force_rate_limit":            false,
-		"force_use_sse":               true,
+		"action":                        "next",
+		"messages":                      chatGPTWebConversationMessages(messages),
+		"model":                         strings.TrimSpace(model),
+		"parent_message_id":             uuid.NewString(),
+		"conversation_mode":             map[string]any{"kind": "primary_assistant"},
+		"conversation_origin":           nil,
+		"force_paragen":                 false,
+		"force_paragen_model_slug":      "",
+		"force_rate_limit":              false,
+		"force_use_sse":                 true,
 		"history_and_training_disabled": true,
 		"reset_rate_limits":             false,
 		"suggestions":                   []any{},
@@ -490,7 +490,7 @@ func chatGPTWebAssistantText(payload string, current string) string {
 		var b strings.Builder
 		for _, part := range parts {
 			if s, ok := part.(string); ok {
-				b.WriteString(s)
+				_, _ = b.WriteString(s)
 			}
 		}
 		if b.Len() > 0 {

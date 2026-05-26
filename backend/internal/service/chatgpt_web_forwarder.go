@@ -94,7 +94,7 @@ func (s *OpenAIGatewayService) handleChatGPTWebStreamingResponse(
 			role := "assistant"
 			chunk.Choices[0].Delta.Role = role
 		}
-		fullContent.WriteString(delta)
+		_, _ = fullContent.WriteString(delta)
 
 		sseData, err := apicompat.ChatChunkToSSE(chunk)
 		if err != nil {
@@ -145,10 +145,10 @@ func (s *OpenAIGatewayService) handleChatGPTWebStreamingResponse(
 	outputTokens := estimateChatGPTWebTokens(fullContent.String())
 
 	result := &OpenAIForwardResult{
-		RequestID:    completionID,
-		Usage:        OpenAIUsage{InputTokens: inputTokens, OutputTokens: outputTokens},
-		Model:        responseModel,
-		BillingModel: billingModel,
+		RequestID:     completionID,
+		Usage:         OpenAIUsage{InputTokens: inputTokens, OutputTokens: outputTokens},
+		Model:         responseModel,
+		BillingModel:  billingModel,
 		UpstreamModel: upstreamModel,
 		Stream:        true,
 		Duration:      time.Since(startTime),
@@ -171,7 +171,7 @@ func (s *OpenAIGatewayService) handleChatGPTWebBufferedResponse(
 ) (*OpenAIForwardResult, error) {
 	var fullContent strings.Builder
 	err := webClient.StreamConversation(ctx, messages, upstreamModel, func(delta string) error {
-		fullContent.WriteString(delta)
+		_, _ = fullContent.WriteString(delta)
 		return nil
 	})
 	if err != nil {
