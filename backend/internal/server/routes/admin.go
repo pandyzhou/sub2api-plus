@@ -97,6 +97,9 @@ func RegisterAdminRoutes(
 
 		// 邀请返利（专属用户管理）
 		registerAffiliateRoutes(admin, h)
+
+		// ChatGPT 号池管理
+		registerChatGPTRoutes(admin, h)
 	}
 }
 
@@ -644,5 +647,22 @@ func registerAffiliateRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 			users.PUT("/:user_id", h.Admin.Affiliate.UpdateUserSettings)
 			users.DELETE("/:user_id", h.Admin.Affiliate.ClearUserSettings)
 		}
+	}
+}
+
+// registerChatGPTRoutes registers ChatGPT Web account pool management routes
+func registerChatGPTRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
+	chatgpt := admin.Group("/chatgpt")
+	{
+		chatgpt.GET("/accounts", h.Admin.ChatGPTAccount.ListAccounts)
+		chatgpt.POST("/accounts", h.Admin.ChatGPTAccount.CreateAccounts)
+		chatgpt.DELETE("/accounts", h.Admin.ChatGPTAccount.DeleteAccounts)
+		chatgpt.POST("/accounts/refresh", h.Admin.ChatGPTAccount.RefreshAccounts)
+		chatgpt.POST("/accounts/update", h.Admin.ChatGPTAccount.UpdateAccount)
+		chatgpt.POST("/accounts/export", h.Admin.ChatGPTAccount.ExportAccounts)
+		chatgpt.GET("/register", h.Admin.ChatGPTAccount.RegisterConfig)
+		chatgpt.POST("/register/start", h.Admin.ChatGPTAccount.StartRegister)
+		chatgpt.POST("/register/stop", h.Admin.ChatGPTAccount.StopRegister)
+		chatgpt.POST("/register/reset", h.Admin.ChatGPTAccount.ResetRegister)
 	}
 }
