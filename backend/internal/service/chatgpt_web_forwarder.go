@@ -194,7 +194,7 @@ func (s *OpenAIGatewayService) handleChatGPTWebBufferedResponse(
 			Index: 0,
 			Message: apicompat.ChatMessage{
 				Role:    "assistant",
-				Content: json.RawMessage(mustJSONString(content)),
+				Content: json.RawMessage(chatGPTWebJSONString(content)),
 			},
 			FinishReason: "stop",
 		}},
@@ -233,7 +233,7 @@ func writeChatSSEEvent(c *gin.Context, data string) error {
 	return nil
 }
 
-func mustJSONString(s string) string {
+func chatGPTWebJSONString(s string) string {
 	b, err := json.Marshal(s)
 	if err != nil {
 		return `""`
