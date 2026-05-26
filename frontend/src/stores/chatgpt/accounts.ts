@@ -16,9 +16,7 @@ import {
   updateAccount,
   exportAccounts,
   type ChatGPTAccount,
-  type ChatGPTAccountType,
-  type ChatGPTAccountStatus,
-  type ChatGPTAccountImportPayload,
+  type ChatGPTAccountMutationResponse,
 } from '@/api/chatgpt'
 
 export const useChatGPTAccountsStore = defineStore('chatgptAccounts', () => {
@@ -30,14 +28,14 @@ export const useChatGPTAccountsStore = defineStore('chatgptAccounts', () => {
   const selectedIds = ref<Set<string>>(new Set())
 
   // Filters
-  const filterStatus = ref<ChatGPTAccountStatus | '全部'>('全部')
-  const filterType = ref<ChatGPTAccountType | '全部'>('全部')
+  const filterStatus = ref<string | '全部'>('全部')
+  const filterType = ref<string | '全部'>('全部')
   const searchQuery = ref('')
 
   // Edit modal state
   const editingAccount = ref<ChatGPTAccount | null>(null)
-  const editType = ref<ChatGPTAccountType>('')
-  const editStatus = ref<ChatGPTAccountStatus>('正常')
+  const editType = ref<string>('')
+  const editStatus = ref<string>('正常')
   const editQuota = ref(0)
 
   // Export dialog state
@@ -125,41 +123,40 @@ export const useChatGPTAccountsStore = defineStore('chatgptAccounts', () => {
     selectedIds.value = new Set()
   }
 
-  async function importAccounts(tokens: string[], payloads: ChatGPTAccountImportPayload[] = []): Promise<void> {
-    const data = await createAccounts(tokens, payloads)
-    accounts.value = data.items || []
+  async function importAccounts(tokens: string[], payloads: Record<string, unknown>[] = []): Promise<void> {
+    await createAccounts(tokens, payloads)
+    await load()
   }
 
   async function removeSelected(): Promise<void> {
     const tokens = Array.from(selectedIds.value)
     if (!tokens.length) return
-    const data = await deleteAccounts(tokens)
-    accounts.value = data.items || []
+    await deleteAccounts(tokens)
     clearSelection()
+    await load()
   }
 
   async function refreshSelected(): Promise<void> {
     const tokens = Array.from(selectedIds.value)
     if (!tokens.length) return
-    const data = await refreshAccounts(tokens)
-    accounts.value = data.items || []
+    await refreshAccounts(tokens)
+    await load()
   }
 
   async function refreshAll(): Promise<void> {
-    // Pass empty array to refresh all accounts
-    const data = await refreshAccounts([])
-    accounts.value = data.items || []
+    await refreshAccounts([])
+    await load()
   }
 
   async function saveEdit(): Promise<void> {
     if (!editingAccount.value) return
-    const data = await updateAccount(editingAccount.value.access_token, {
+    await updateAccount(editingAccount.value.access_token, {
       type: editType.value || undefined,
       status: editStatus.value || undefined,
       quota: editQuota.value,
     })
-    accounts.value = data.items || []
     editingAccount.value = null
+    await load()
   }
 
   function openEdit(account: ChatGPTAccount): void {

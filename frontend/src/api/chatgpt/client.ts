@@ -17,7 +17,15 @@ export type ChatGPTAccount = {
   email?: string
   user_id?: string
   plan_type?: string
+  chatgpt_account_id?: string
   created_at?: string
+  // Legacy fields for backward compatibility
+  quota?: number
+  image_quota_unknown?: boolean
+  account_id?: string
+  success?: number
+  fail?: number
+  last_used_at?: string | null
 }
 
 export type ChatGPTAccountListResponse = {
@@ -25,6 +33,7 @@ export type ChatGPTAccountListResponse = {
 }
 
 export type ChatGPTAccountMutationResponse = {
+  items?: ChatGPTAccount[]
   added?: number
   skipped?: number
   removed?: number

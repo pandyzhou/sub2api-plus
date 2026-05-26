@@ -219,6 +219,24 @@ func (h *ChatGPTAccountHandler) RegisterConfig(c *gin.Context) {
 	})
 }
 
+// StartRegister starts the registration process.
+// POST /api/v1/admin/chatgpt/register/start
+func (h *ChatGPTAccountHandler) StartRegister(c *gin.Context) {
+	response.Error(c, 501, "register machine not yet implemented in Go backend")
+}
+
+// StopRegister stops the registration process.
+// POST /api/v1/admin/chatgpt/register/stop
+func (h *ChatGPTAccountHandler) StopRegister(c *gin.Context) {
+	response.Error(c, 501, "register machine not yet implemented in Go backend")
+}
+
+// ResetRegister resets the registration stats.
+// POST /api/v1/admin/chatgpt/register/reset
+func (h *ChatGPTAccountHandler) ResetRegister(c *gin.Context) {
+	response.Error(c, 501, "register machine not yet implemented in Go backend")
+}
+
 // ---- internal helpers ----
 
 func (h *ChatGPTAccountHandler) chatgptAccounts(ctx context.Context) ([]map[string]any, error) {
