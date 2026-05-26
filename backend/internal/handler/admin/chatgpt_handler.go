@@ -13,8 +13,8 @@ import (
 
 // ChatGPTAccountHandler manages ChatGPT Web OAuth accounts as a pooled resource.
 type ChatGPTAccountHandler struct {
-	accountRepo   service.AccountRepository
-	registerSvc   *service.ChatGPTRegisterService
+	accountRepo service.AccountRepository
+	registerSvc *service.ChatGPTRegisterService
 }
 
 // NewChatGPTAccountHandler creates a new ChatGPT account handler.

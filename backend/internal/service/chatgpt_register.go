@@ -512,7 +512,7 @@ func (s *ChatGPTRegisterService) platformAuthorize(ctx context.Context, email, d
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode >= 400 {
 		return fmt.Errorf("authorize HTTP %d", resp.StatusCode)
 	}
@@ -529,7 +529,7 @@ func (s *ChatGPTRegisterService) registerUser(ctx context.Context, email, passwo
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode >= 400 {
 		return fmt.Errorf("register HTTP %d", resp.StatusCode)
 	}
@@ -543,7 +543,7 @@ func (s *ChatGPTRegisterService) sendOTP(ctx context.Context, deviceID, proxyURL
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode >= 400 {
 		return fmt.Errorf("send OTP HTTP %d", resp.StatusCode)
 	}
@@ -614,7 +614,7 @@ func (s *ChatGPTRegisterService) validateOTP(ctx context.Context, code, deviceID
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode >= 400 {
 		return fmt.Errorf("validate OTP HTTP %d", resp.StatusCode)
 	}
@@ -634,7 +634,7 @@ func (s *ChatGPTRegisterService) createAccountProfile(ctx context.Context, first
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode >= 400 {
 		return fmt.Errorf("create account HTTP %d", resp.StatusCode)
 	}
@@ -655,13 +655,13 @@ func (s *ChatGPTRegisterService) exchangeTokens(ctx context.Context, email, pass
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	var data struct {
 		AccessToken  string `json:"access_token"`
 		RefreshToken string `json:"refresh_token"`
 		IDToken      string `json:"id_token"`
 	}
-	if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
+	if err := func() { _ = json.NewDecoder(resp.Body).Decode(&data) }(); err != nil {
 		return nil, err
 	}
 	if data.AccessToken == "" || data.RefreshToken == "" {
@@ -678,7 +678,7 @@ func (s *ChatGPTRegisterService) exchangeTokens(ctx context.Context, email, pass
 
 func chatGPTRegisterGeneratePKCE() (verifier, challenge, state, nonce string) {
 	b := make([]byte, 64)
-	rand.Read(b)
+	_, _ = rand.Read(b)
 	verifier = strings.TrimRight(base64.URLEncoding.EncodeToString(b), "=")
 	h := sha256.Sum256([]byte(verifier))
 	challenge = strings.TrimRight(base64.URLEncoding.EncodeToString(h[:]), "=")
@@ -690,7 +690,7 @@ func chatGPTRegisterGeneratePKCE() (verifier, challenge, state, nonce string) {
 func chatGPTRegisterRandomPassword(length int) string {
 	const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%"
 	b := make([]byte, length)
-	rand.Read(b)
+	_, _ = rand.Read(b)
 	for i, v := range b {
 		b[i] = chars[int(v)%len(chars)]
 	}
@@ -717,13 +717,13 @@ func chatGPTRegisterRandomBirthdate() string {
 
 func chatGPTRegisterRandomHex(n int) string {
 	b := make([]byte, n)
-	rand.Read(b)
+	_, _ = rand.Read(b)
 	return fmt.Sprintf("%x", b)
 }
 
 func chatGPTRegisterRandomUUID() string {
 	b := make([]byte, 16)
-	rand.Read(b)
+	_, _ = rand.Read(b)
 	b[6] = (b[6] & 0x0f) | 0x40
 	b[8] = (b[8] & 0x3f) | 0x80
 	return fmt.Sprintf("%x-%x-%x-%x-%x", b[0:4], b[4:6], b[6:8], b[8:10], b[10:])
