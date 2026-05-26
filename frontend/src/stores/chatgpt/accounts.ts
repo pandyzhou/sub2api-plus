@@ -16,7 +16,6 @@ import {
   updateAccount,
   exportAccounts,
   type ChatGPTAccount,
-  type ChatGPTAccountMutationResponse,
 } from '@/api/chatgpt'
 
 export const useChatGPTAccountsStore = defineStore('chatgptAccounts', () => {
@@ -163,7 +162,7 @@ export const useChatGPTAccountsStore = defineStore('chatgptAccounts', () => {
     editingAccount.value = account
     editType.value = account.type
     editStatus.value = account.status
-    editQuota.value = account.quota
+    editQuota.value = account.quota || 0
   }
 
   function closeEdit(): void {
@@ -172,11 +171,12 @@ export const useChatGPTAccountsStore = defineStore('chatgptAccounts', () => {
 
   async function downloadExport(): Promise<void> {
     const tokens = Array.from(selectedIds.value)
-    const blob = await exportAccounts(exportFormat.value, tokens)
+    const data = await exportAccounts(tokens)
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = `chatgpt-accounts.${exportFormat.value}`
+    a.download = 'chatgpt-accounts.json'
     document.body.appendChild(a)
     a.click()
     document.body.removeChild(a)

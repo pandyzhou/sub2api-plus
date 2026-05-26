@@ -27,11 +27,16 @@ export type RegisterConfig = {
   mode: RegisterMode
   total: number
   threads: number
+  proxy: string
+  target_quota: number
+  target_available: number
+  check_interval: number
   stats: {
     success: number
     fail: number
     done: number
     running: number
+    threads?: number
   }
   logs?: Array<{
     time: string

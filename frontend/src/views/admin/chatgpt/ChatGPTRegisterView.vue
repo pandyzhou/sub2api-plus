@@ -66,7 +66,7 @@
           <div class="mt-1 text-xs text-gray-500">{{ t('chatgpt.register.statRunning') }}</div>
         </div>
         <div class="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
-          <div class="text-2xl font-bold text-gray-700 dark:text-gray-300">{{ store.stats.threads }}</div>
+          <div class="text-2xl font-bold text-gray-700 dark:text-gray-300">{{ store.stats?.threads ?? 0 }}</div>
           <div class="mt-1 text-xs text-gray-500">{{ t('chatgpt.register.statThreads') }}</div>
         </div>
         <div class="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">

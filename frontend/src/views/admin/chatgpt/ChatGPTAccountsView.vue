@@ -137,7 +137,7 @@
                 {{ acc.image_quota_unknown ? '?' : (acc.quota ?? 0) }}
               </td>
               <td class="px-3 py-2 text-gray-600 dark:text-gray-400">
-                {{ acc.success }}/{{ acc.success + acc.fail }}
+                {{ (acc.success ?? 0) }}/{{ (acc.success ?? 0) + (acc.fail ?? 0) }}
               </td>
               <td class="px-3 py-2 text-gray-400 dark:text-gray-500">{{ formatDate(acc.last_used_at) }}</td>
               <td class="px-3 py-2">
