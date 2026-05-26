@@ -973,8 +973,57 @@ func (a *Account) IsOpenAIOAuth() bool {
 	return a.IsOpenAI() && a.Type == AccountTypeOAuth
 }
 
+type OpenAIBackendMode string
+
+const (
+	OpenAIBackendModeAny        OpenAIBackendMode = ""
+	OpenAIBackendModeCodex      OpenAIBackendMode = "codex"
+	OpenAIBackendModeChatGPTWeb OpenAIBackendMode = "chatgpt_web"
+)
+
 func (a *Account) IsOpenAIApiKey() bool {
 	return a.IsOpenAI() && a.Type == AccountTypeAPIKey
+}
+
+func normalizeOpenAIBackendMode(mode string) OpenAIBackendMode {
+	switch strings.ToLower(strings.TrimSpace(mode)) {
+	case string(OpenAIBackendModeChatGPTWeb):
+		return OpenAIBackendModeChatGPTWeb
+	case "", string(OpenAIBackendModeCodex):
+		return OpenAIBackendModeCodex
+	default:
+		return OpenAIBackendModeCodex
+	}
+}
+
+func (a *Account) OpenAIBackendMode() OpenAIBackendMode {
+	if !a.IsOpenAI() {
+		return OpenAIBackendModeAny
+	}
+	if a.Extra != nil {
+		if v, ok := a.Extra["openai_backend_mode"].(string); ok {
+			return normalizeOpenAIBackendMode(v)
+		}
+	}
+	// Backward-compatible import path: tolerate old data that placed this
+	// routing flag in credentials, but callers should persist it into Extra.
+	if a.Credentials != nil {
+		if v, ok := a.Credentials["openai_backend_mode"].(string); ok {
+			return normalizeOpenAIBackendMode(v)
+		}
+	}
+	return OpenAIBackendModeCodex
+}
+
+func (a *Account) IsOpenAIChatGPTWebMode() bool {
+	return a.IsOpenAIOAuth() && a.OpenAIBackendMode() == OpenAIBackendModeChatGPTWeb
+}
+
+func (a *Account) MatchesOpenAIBackendMode(required OpenAIBackendMode) bool {
+	if required == OpenAIBackendModeAny {
+		return true
+	}
+	return a.OpenAIBackendMode() == required
 }
 
 func (a *Account) GetOpenAIBaseURL() string {
@@ -1044,6 +1093,37 @@ func (a *Account) GetOpenAISessionID() string {
 		return ""
 	}
 	return strings.TrimSpace(a.GetExtraString("openai_session_id"))
+}
+
+func (a *Account) GetChatGPTWebDeviceID() string {
+	if !a.IsOpenAIOAuth() {
+		return ""
+	}
+	for _, key := range []string{"oai_device_id", "openai_device_id"} {
+		if v := strings.TrimSpace(a.GetCredential(key)); v != "" {
+			return v
+		}
+	}
+	return a.GetOpenAIDeviceID()
+}
+
+func (a *Account) GetChatGPTWebSessionID() string {
+	if !a.IsOpenAIOAuth() {
+		return ""
+	}
+	for _, key := range []string{"oai_session_id", "openai_session_id"} {
+		if v := strings.TrimSpace(a.GetCredential(key)); v != "" {
+			return v
+		}
+	}
+	return a.GetOpenAISessionID()
+}
+
+func (a *Account) GetChatGPTWebUserAgent() string {
+	if !a.IsOpenAIOAuth() {
+		return ""
+	}
+	return a.GetOpenAIUserAgent()
 }
 
 func (a *Account) SupportsOpenAIImageCapability(capability OpenAIImagesCapability) bool {

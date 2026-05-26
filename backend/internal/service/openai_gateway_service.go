@@ -1279,7 +1279,7 @@ func (s *OpenAIGatewayService) SelectAccountForModel(ctx context.Context, groupI
 // SelectAccountForModelWithExclusions selects an account supporting the requested model while excluding specified accounts.
 // SelectAccountForModelWithExclusions 选择支持指定模型的账号，同时排除指定的账号。
 func (s *OpenAIGatewayService) SelectAccountForModelWithExclusions(ctx context.Context, groupID *int64, sessionHash string, requestedModel string, excludedIDs map[int64]struct{}) (*Account, error) {
-	return s.selectAccountForModelWithExclusions(ctx, groupID, sessionHash, requestedModel, excludedIDs, false, 0)
+	return s.selectAccountForModelWithExclusions(ctx, groupID, sessionHash, requestedModel, excludedIDs, false, 0, OpenAIBackendModeCodex)
 }
 
 // noAvailableOpenAISelectionError builds the standard "no account available" error
@@ -1366,7 +1366,7 @@ func resolveOpenAIAccountUpstreamModelForRequest(account *Account, requestedMode
 	return upstreamModel
 }
 
-func (s *OpenAIGatewayService) selectAccountForModelWithExclusions(ctx context.Context, groupID *int64, sessionHash string, requestedModel string, excludedIDs map[int64]struct{}, requireCompact bool, stickyAccountID int64) (*Account, error) {
+func (s *OpenAIGatewayService) selectAccountForModelWithExclusions(ctx context.Context, groupID *int64, sessionHash string, requestedModel string, excludedIDs map[int64]struct{}, requireCompact bool, stickyAccountID int64, requiredBackendMode OpenAIBackendMode) (*Account, error) {
 	if s.checkChannelPricingRestriction(ctx, groupID, requestedModel) {
 		slog.Warn("channel pricing restriction blocked request",
 			"group_id", derefGroupID(groupID),
@@ -1376,7 +1376,7 @@ func (s *OpenAIGatewayService) selectAccountForModelWithExclusions(ctx context.C
 
 	// 1. 尝试粘性会话命中
 	// Try sticky session hit
-	if account := s.tryStickySessionHit(ctx, groupID, sessionHash, requestedModel, excludedIDs, requireCompact, stickyAccountID); account != nil {
+	if account := s.tryStickySessionHit(ctx, groupID, sessionHash, requestedModel, excludedIDs, requireCompact, stickyAccountID, requiredBackendMode); account != nil {
 		return account, nil
 	}
 
@@ -1389,7 +1389,7 @@ func (s *OpenAIGatewayService) selectAccountForModelWithExclusions(ctx context.C
 
 	// 3. 按优先级 + LRU 选择最佳账号
 	// Select by priority + LRU
-	selected, compactBlocked := s.selectBestAccount(ctx, groupID, accounts, requestedModel, excludedIDs, requireCompact)
+	selected, compactBlocked := s.selectBestAccount(ctx, groupID, accounts, requestedModel, excludedIDs, requireCompact, requiredBackendMode)
 
 	if selected == nil {
 		return nil, noAvailableOpenAISelectionError(requestedModel, compactBlocked)
@@ -1414,7 +1414,7 @@ func (s *OpenAIGatewayService) selectAccountForModelWithExclusions(ctx context.C
 //
 // tryStickySessionHit attempts to get account from sticky session.
 // Returns account if hit and usable; clears session and returns nil if account is unavailable.
-func (s *OpenAIGatewayService) tryStickySessionHit(ctx context.Context, groupID *int64, sessionHash, requestedModel string, excludedIDs map[int64]struct{}, requireCompact bool, stickyAccountID int64) *Account {
+func (s *OpenAIGatewayService) tryStickySessionHit(ctx context.Context, groupID *int64, sessionHash, requestedModel string, excludedIDs map[int64]struct{}, requireCompact bool, stickyAccountID int64, requiredBackendMode OpenAIBackendMode) *Account {
 	if sessionHash == "" {
 		return nil
 	}
@@ -1446,7 +1446,7 @@ func (s *OpenAIGatewayService) tryStickySessionHit(ctx context.Context, groupID 
 
 	// 验证账号是否可用于当前请求
 	// Verify account is usable for current request
-	if !isOpenAIAccountEligibleForRequest(account, requestedModel, false) {
+	if !isOpenAIAccountEligibleForRequest(account, requestedModel, false) || !account.MatchesOpenAIBackendMode(requiredBackendMode) {
 		return nil
 	}
 	if s.isOpenAIAccountRuntimeBlocked(account) {
@@ -1454,7 +1454,7 @@ func (s *OpenAIGatewayService) tryStickySessionHit(ctx context.Context, groupID 
 		return nil
 	}
 	account = s.recheckSelectedOpenAIAccountFromDB(ctx, account, requestedModel, requireCompact)
-	if account == nil {
+	if account == nil || !account.MatchesOpenAIBackendMode(requiredBackendMode) {
 		_ = s.deleteStickySessionAccountID(ctx, groupID, sessionHash)
 		return nil
 	}
@@ -1477,7 +1477,7 @@ func (s *OpenAIGatewayService) tryStickySessionHit(ctx context.Context, groupID 
 // Returns nil if no available account. The second return reports whether at
 // least one candidate was filtered out solely because it lacks compact support
 // (only meaningful when requireCompact=true).
-func (s *OpenAIGatewayService) selectBestAccount(ctx context.Context, groupID *int64, accounts []Account, requestedModel string, excludedIDs map[int64]struct{}, requireCompact bool) (*Account, bool) {
+func (s *OpenAIGatewayService) selectBestAccount(ctx context.Context, groupID *int64, accounts []Account, requestedModel string, excludedIDs map[int64]struct{}, requireCompact bool, requiredBackendMode OpenAIBackendMode) (*Account, bool) {
 	var selected *Account
 	selectedCompactTier := -1
 	compactBlocked := false
@@ -1497,7 +1497,7 @@ func (s *OpenAIGatewayService) selectBestAccount(ctx context.Context, groupID *i
 			continue
 		}
 		fresh = s.recheckSelectedOpenAIAccountFromDB(ctx, fresh, requestedModel, false)
-		if fresh == nil {
+		if fresh == nil || !fresh.MatchesOpenAIBackendMode(requiredBackendMode) {
 			continue
 		}
 		if needsUpstreamCheck && s.isUpstreamModelRestrictedByChannel(ctx, *groupID, fresh, requestedModel, requireCompact) {
@@ -1573,10 +1573,10 @@ func (s *OpenAIGatewayService) isBetterAccount(candidate, current *Account) bool
 
 // SelectAccountWithLoadAwareness selects an account with load-awareness and wait plan.
 func (s *OpenAIGatewayService) SelectAccountWithLoadAwareness(ctx context.Context, groupID *int64, sessionHash string, requestedModel string, excludedIDs map[int64]struct{}) (*AccountSelectionResult, error) {
-	return s.selectAccountWithLoadAwareness(ctx, groupID, sessionHash, requestedModel, excludedIDs, false)
+	return s.selectAccountWithLoadAwareness(ctx, groupID, sessionHash, requestedModel, excludedIDs, OpenAIBackendModeCodex, false)
 }
 
-func (s *OpenAIGatewayService) selectAccountWithLoadAwareness(ctx context.Context, groupID *int64, sessionHash string, requestedModel string, excludedIDs map[int64]struct{}, requireCompact bool) (*AccountSelectionResult, error) {
+func (s *OpenAIGatewayService) selectAccountWithLoadAwareness(ctx context.Context, groupID *int64, sessionHash string, requestedModel string, excludedIDs map[int64]struct{}, requiredBackendMode OpenAIBackendMode, requireCompact bool) (*AccountSelectionResult, error) {
 	if s.checkChannelPricingRestriction(ctx, groupID, requestedModel) {
 		slog.Warn("channel pricing restriction blocked request",
 			"group_id", derefGroupID(groupID),
@@ -1593,7 +1593,7 @@ func (s *OpenAIGatewayService) selectAccountWithLoadAwareness(ctx context.Contex
 		}
 	}
 	if s.concurrencyService == nil || !cfg.LoadBatchEnabled {
-		account, err := s.selectAccountForModelWithExclusions(ctx, groupID, sessionHash, requestedModel, excludedIDs, requireCompact, stickyAccountID)
+		account, err := s.selectAccountForModelWithExclusions(ctx, groupID, sessionHash, requestedModel, excludedIDs, requireCompact, stickyAccountID, requiredBackendMode)
 		if err != nil {
 			return nil, err
 		}
@@ -1646,9 +1646,11 @@ func (s *OpenAIGatewayService) selectAccountWithLoadAwareness(ctx context.Contex
 				if clearSticky {
 					_ = s.deleteStickySessionAccountID(ctx, groupID, sessionHash)
 				}
-				if !clearSticky && isOpenAIAccountEligibleForRequest(account, requestedModel, false) {
+				if !clearSticky && isOpenAIAccountEligibleForRequest(account, requestedModel, false) && account.MatchesOpenAIBackendMode(requiredBackendMode) {
 					account = s.recheckSelectedOpenAIAccountFromDB(ctx, account, requestedModel, requireCompact)
 					if account == nil {
+						_ = s.deleteStickySessionAccountID(ctx, groupID, sessionHash)
+					} else if !account.MatchesOpenAIBackendMode(requiredBackendMode) {
 						_ = s.deleteStickySessionAccountID(ctx, groupID, sessionHash)
 					} else if s.isOpenAIAccountRuntimeBlocked(account) {
 						_ = s.deleteStickySessionAccountID(ctx, groupID, sessionHash)
@@ -1695,6 +1697,9 @@ func (s *OpenAIGatewayService) selectAccountWithLoadAwareness(ctx context.Contex
 			continue
 		}
 		if s.isOpenAIAccountRuntimeBlocked(acc) {
+			continue
+		}
+		if !acc.MatchesOpenAIBackendMode(requiredBackendMode) {
 			continue
 		}
 		if requestedModel != "" && !acc.IsModelSupported(requestedModel) {
