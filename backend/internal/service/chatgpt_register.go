@@ -27,35 +27,35 @@ type ChatGPTRegisterService struct {
 }
 
 type ChatGPTRegisterConfig struct {
-	Enabled        bool     `json:"enabled"`
-	Mode           string   `json:"mode"` // total | quota | available
-	Total          int      `json:"total"`
-	Threads        int      `json:"threads"`
-	Proxy          string   `json:"proxy"`
-	TargetQuota    int      `json:"target_quota"`
-	TargetAvail    int      `json:"target_available"`
-	CheckInterval  int      `json:"check_interval"`
-	MailProvider   string   `json:"mail_provider"`   // e.g. "mailtm", "custom"
-	MailAPIBase    string   `json:"mail_api_base"`   // custom mail provider base URL
-	MailAPIKey     string   `json:"mail_api_key"`    // custom mail provider API key
-	Stats          ChatGPTRegisterStats `json:"stats"`
+	Enabled       bool                 `json:"enabled"`
+	Mode          string               `json:"mode"` // total | quota | available
+	Total         int                  `json:"total"`
+	Threads       int                  `json:"threads"`
+	Proxy         string               `json:"proxy"`
+	TargetQuota   int                  `json:"target_quota"`
+	TargetAvail   int                  `json:"target_available"`
+	CheckInterval int                  `json:"check_interval"`
+	MailProvider  string               `json:"mail_provider"` // e.g. "mailtm", "custom"
+	MailAPIBase   string               `json:"mail_api_base"` // custom mail provider base URL
+	MailAPIKey    string               `json:"mail_api_key"`  // custom mail provider API key
+	Stats         ChatGPTRegisterStats `json:"stats"`
 }
 
 type ChatGPTRegisterStats struct {
-	JobID           string  `json:"job_id,omitempty"`
-	Success         int     `json:"success"`
-	Fail            int     `json:"fail"`
-	Done            int     `json:"done"`
-	Running         int     `json:"running"`
-	Threads         int     `json:"threads"`
-	ElapsedSeconds  float64 `json:"elapsed_seconds"`
-	AvgSeconds      float64 `json:"avg_seconds"`
-	SuccessRate     float64 `json:"success_rate"`
-	CurrentQuota    int     `json:"current_quota"`
-	CurrentAvail    int     `json:"current_available"`
-	StartedAt       string  `json:"started_at,omitempty"`
-	UpdatedAt       string  `json:"updated_at,omitempty"`
-	FinishedAt      string  `json:"finished_at,omitempty"`
+	JobID          string  `json:"job_id,omitempty"`
+	Success        int     `json:"success"`
+	Fail           int     `json:"fail"`
+	Done           int     `json:"done"`
+	Running        int     `json:"running"`
+	Threads        int     `json:"threads"`
+	ElapsedSeconds float64 `json:"elapsed_seconds"`
+	AvgSeconds     float64 `json:"avg_seconds"`
+	SuccessRate    float64 `json:"success_rate"`
+	CurrentQuota   int     `json:"current_quota"`
+	CurrentAvail   int     `json:"current_available"`
+	StartedAt      string  `json:"started_at,omitempty"`
+	UpdatedAt      string  `json:"updated_at,omitempty"`
+	FinishedAt     string  `json:"finished_at,omitempty"`
 }
 
 type ChatGPTRegisterLog struct {
@@ -196,10 +196,10 @@ func (s *ChatGPTRegisterService) Start() map[string]any {
 	}
 	s.cfg.Enabled = true
 	s.cfg.Stats = ChatGPTRegisterStats{
-		JobID:      fmt.Sprintf("%x", time.Now().UnixNano()),
-		Threads:    s.cfg.Threads,
-		StartedAt:  time.Now().UTC().Format(time.RFC3339),
-		UpdatedAt:  time.Now().UTC().Format(time.RFC3339),
+		JobID:     fmt.Sprintf("%x", time.Now().UnixNano()),
+		Threads:   s.cfg.Threads,
+		StartedAt: time.Now().UTC().Format(time.RFC3339),
+		UpdatedAt: time.Now().UTC().Format(time.RFC3339),
 	}
 	s.logs = nil
 	s.saveConfig()
@@ -359,8 +359,8 @@ func (s *ChatGPTRegisterService) registerOne(ctx context.Context, cfg ChatGPTReg
 	s.appendLog(fmt.Sprintf("创建临时邮箱: %s", email), "info")
 
 	// Step 2: PKCE + authorize
-	codeVerifier, codeChallenge, state, nonce := generatePKCE()
-	deviceID := randomUUID()
+	codeVerifier, codeChallenge, state, nonce := chatGPTRegisterGeneratePKCE()
+	deviceID := chatGPTRegisterRandomUUID()
 	proxyURL := cfg.Proxy
 
 	err = s.platformAuthorize(ctx, email, deviceID, codeChallenge, state, nonce, proxyURL)
@@ -370,7 +370,7 @@ func (s *ChatGPTRegisterService) registerOne(ctx context.Context, cfg ChatGPTReg
 	}
 
 	// Step 3: Register user with password
-	password := randomPassword(16)
+	password := chatGPTRegisterRandomPassword(16)
 	err = s.registerUser(ctx, email, password, deviceID, proxyURL)
 	if err != nil {
 		s.appendLog(fmt.Sprintf("注册用户失败: %v", err), "error")
@@ -399,8 +399,8 @@ func (s *ChatGPTRegisterService) registerOne(ctx context.Context, cfg ChatGPTReg
 	}
 
 	// Step 7: Create account profile
-	firstName, lastName := randomName()
-	birthdate := randomBirthdate()
+	firstName, lastName := chatGPTRegisterRandomName()
+	birthdate := chatGPTRegisterRandomBirthdate()
 	err = s.createAccountProfile(ctx, firstName, lastName, birthdate, deviceID, proxyURL)
 	if err != nil {
 		s.appendLog(fmt.Sprintf("创建账号资料失败: %v", err), "error")
@@ -473,7 +473,7 @@ func (s *ChatGPTRegisterService) createTempEmail(cfg ChatGPTRegisterConfig) (*te
 	domain := domainsData.HydraMember[0].Domain
 	localPart := fmt.Sprintf("r%x", time.Now().UnixNano()%0xFFFFFF)
 	email := localPart + "@" + domain
-	password := randomPassword(12)
+	password := chatGPTRegisterRandomPassword(12)
 
 	createBody, _ := json.Marshal(map[string]string{"address": email, "password": password})
 	createResp, err := client.Post("https://api.mail.tm/accounts", "application/json", strings.NewReader(string(createBody)))
@@ -489,20 +489,20 @@ func (s *ChatGPTRegisterService) createTempEmail(cfg ChatGPTRegisterConfig) (*te
 
 func (s *ChatGPTRegisterService) platformAuthorize(ctx context.Context, email, deviceID, codeChallenge, state, nonce, proxyURL string) error {
 	params := url.Values{
-		"issuer":            {"https://auth.openai.com"},
-		"client_id":         {"app_2SKx67EdpoN0G6j64rFvigXD"},
-		"audience":          {"https://api.openai.com/v1"},
-		"redirect_uri":      {"https://platform.openai.com/auth/callback"},
-		"device_id":         {deviceID},
-		"screen_hint":       {"login_or_signup"},
-		"max_age":           {"0"},
-		"login_hint":        {email},
-		"scope":             {"openid profile email offline_access"},
-		"response_type":     {"code"},
-		"response_mode":     {"query"},
-		"state":             {state},
-		"nonce":             {nonce},
-		"code_challenge":    {codeChallenge},
+		"issuer":                {"https://auth.openai.com"},
+		"client_id":             {"app_2SKx67EdpoN0G6j64rFvigXD"},
+		"audience":              {"https://api.openai.com/v1"},
+		"redirect_uri":          {"https://platform.openai.com/auth/callback"},
+		"device_id":             {deviceID},
+		"screen_hint":           {"login_or_signup"},
+		"max_age":               {"0"},
+		"login_hint":            {email},
+		"scope":                 {"openid profile email offline_access"},
+		"response_type":         {"code"},
+		"response_mode":         {"query"},
+		"state":                 {state},
+		"nonce":                 {nonce},
+		"code_challenge":        {codeChallenge},
 		"code_challenge_method": {"S256"},
 	}
 	reqURL := "https://auth.openai.com/api/accounts/authorize?" + params.Encode()
@@ -594,7 +594,7 @@ func (s *ChatGPTRegisterService) waitForOTPCode(ctx context.Context, mailbox *te
 			msgResp.Body.Close()
 			for _, msg := range msgData.HydraMember {
 				if strings.Contains(msg.Subject, "OpenAI") || strings.Contains(msg.Text, "verification code") {
-					code := extractOTPFromText(msg.Text)
+					code := chatGPTRegisterExtractOTP(msg.Text)
 					if code != "" {
 						return code, nil
 					}
@@ -676,18 +676,18 @@ func (s *ChatGPTRegisterService) exchangeTokens(ctx context.Context, email, pass
 
 // Helpers
 
-func generatePKCE() (verifier, challenge, state, nonce string) {
+func chatGPTRegisterGeneratePKCE() (verifier, challenge, state, nonce string) {
 	b := make([]byte, 64)
 	rand.Read(b)
 	verifier = strings.TrimRight(base64.URLEncoding.EncodeToString(b), "=")
 	h := sha256.Sum256([]byte(verifier))
 	challenge = strings.TrimRight(base64.URLEncoding.EncodeToString(h[:]), "=")
-	state = randomHex(32)
-	nonce = randomHex(32)
+	state = chatGPTRegisterRandomHex(32)
+	nonce = chatGPTRegisterRandomHex(32)
 	return
 }
 
-func randomPassword(length int) string {
+func chatGPTRegisterRandomPassword(length int) string {
 	const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%"
 	b := make([]byte, length)
 	rand.Read(b)
@@ -697,7 +697,7 @@ func randomPassword(length int) string {
 	return string(b)
 }
 
-func randomName() (string, string) {
+func chatGPTRegisterRandomName() (string, string) {
 	first := []string{"James", "Robert", "John", "Michael", "David", "Emma", "Olivia", "Sophia"}
 	last := []string{"Smith", "Johnson", "Williams", "Brown", "Jones", "Garcia", "Miller"}
 	var a, b [1]byte
@@ -706,7 +706,7 @@ func randomName() (string, string) {
 	return first[int(a[0])%len(first)], last[int(b[0])%len(last)]
 }
 
-func randomBirthdate() string {
+func chatGPTRegisterRandomBirthdate() string {
 	var b [3]byte
 	rand.Read(b[:])
 	year := 1996 + int(b[0])%11
@@ -715,13 +715,13 @@ func randomBirthdate() string {
 	return fmt.Sprintf("%04d-%02d-%02d", year, month, day)
 }
 
-func randomHex(n int) string {
+func chatGPTRegisterRandomHex(n int) string {
 	b := make([]byte, n)
 	rand.Read(b)
 	return fmt.Sprintf("%x", b)
 }
 
-func randomUUID() string {
+func chatGPTRegisterRandomUUID() string {
 	b := make([]byte, 16)
 	rand.Read(b)
 	b[6] = (b[6] & 0x0f) | 0x40
@@ -729,7 +729,7 @@ func randomUUID() string {
 	return fmt.Sprintf("%x-%x-%x-%x-%x", b[0:4], b[4:6], b[6:8], b[8:10], b[10:])
 }
 
-func extractOTPFromText(text string) string {
+func chatGPTRegisterExtractOTP(text string) string {
 	// Extract 6-digit code from email text
 	for i := 0; i <= len(text)-6; i++ {
 		if text[i] >= '0' && text[i] <= '9' {
