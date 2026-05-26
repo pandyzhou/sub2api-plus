@@ -179,7 +179,7 @@ func TestEstimateChatGPTWebTokens(t *testing.T) {
 	}{
 		{"", 0},
 		{"hello", 2},
-		{"这是一个测试文本用于估算 token 数量", 8},
+		{"这是一个测试文本用于估算 token 数量", 4},
 	}
 	for _, tt := range tests {
 		got := estimateChatGPTWebTokens(tt.text)

@@ -523,7 +523,11 @@ func stringMapVal(m map[string]any, key string) string {
 	if m == nil {
 		return ""
 	}
-	return strings.TrimSpace(fmt.Sprint(m[key]))
+	v, ok := m[key]
+	if !ok || v == nil {
+		return ""
+	}
+	return strings.TrimSpace(fmt.Sprint(v))
 }
 
 func boolMapVal(m map[string]any, key string) bool {
