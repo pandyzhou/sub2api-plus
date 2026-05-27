@@ -13,6 +13,10 @@ import (
 	"net/http/cookiejar"
 	"net/url"
 	"strings"
+
+	fhttp "github.com/bogdanfinn/fhttp"
+	tlsclient "github.com/bogdanfinn/tls-client"
+	tlsclientprofiles "github.com/bogdanfinn/tls-client/profiles"
 	"time"
 )
 
@@ -33,9 +37,10 @@ const (
 )
 
 type chatGPTRegisterOpenAIClient struct {
-	http     *http.Client
-	deviceID string
-	proxyURL string
+	http       *http.Client
+	tlsClient  tlsclient.HttpClient
+	deviceID   string
+	proxyURL   string
 }
 
 func newChatGPTRegisterOpenAIClient(proxyURL, deviceID string) (*chatGPTRegisterOpenAIClient, error) {
@@ -48,10 +53,30 @@ func newChatGPTRegisterOpenAIClient(proxyURL, deviceID string) (*chatGPTRegister
 	if strings.TrimSpace(deviceID) == "" {
 		deviceID = chatGPTRegisterRandomUUID()
 	}
-	return &chatGPTRegisterOpenAIClient{http: client, deviceID: deviceID, proxyURL: proxyURL}, nil
+
+	tlsJar := tlsclient.NewCookieJar()
+	tlsOpts := []tlsclient.HttpClientOption{
+		tlsclient.WithTimeoutSeconds(60),
+		tlsclient.WithClientProfile(tlsclientprofiles.Chrome_144),
+		tlsclient.WithNotFollowRedirects(),
+		tlsclient.WithCookieJar(tlsJar),
+	}
+	if strings.TrimSpace(proxyURL) != "" {
+		tlsOpts = append(tlsOpts, tlsclient.WithProxyUrl(strings.TrimSpace(proxyURL)))
+	}
+	tlsCli, err := tlsclient.NewHttpClient(tlsclient.NewNoopLogger(), tlsOpts...)
+	if err != nil {
+		return nil, fmt.Errorf("init tls-client: %w", err)
+	}
+
+	return &chatGPTRegisterOpenAIClient{http: client, tlsClient: tlsCli, deviceID: deviceID, proxyURL: proxyURL}, nil
 }
 
-func (c *chatGPTRegisterOpenAIClient) close() {}
+func (c *chatGPTRegisterOpenAIClient) close() {
+	if c.tlsClient != nil {
+		c.tlsClient.CloseIdleConnections()
+	}
+}
 
 func chatGPTRegisterPlatformRedirectURI() string {
 	return strings.TrimRight(chatGPTRegisterPlatformBase, "/") + "/auth/callback"
@@ -126,11 +151,11 @@ func chatGPTRegisterTraceHeaders() map[string]string {
 }
 
 func (c *chatGPTRegisterOpenAIClient) setDeviceCookies() {
-	if c.http == nil || c.http.Jar == nil {
-		return
-	}
 	u, _ := url.Parse(strings.TrimRight(chatGPTRegisterAuthBase, "/"))
-	c.http.Jar.SetCookies(u, []*http.Cookie{{Name: "oai-did", Value: c.deviceID, Path: "/"}})
+	cookies := []*fhttp.Cookie{{Name: "oai-did", Value: c.deviceID, Path: "/"}}
+	if c.tlsClient != nil {
+		c.tlsClient.SetCookies(u, cookies)
+	}
 }
 
 func (c *chatGPTRegisterOpenAIClient) do(req *http.Request) (*http.Response, []byte, error) {
@@ -139,8 +164,30 @@ func (c *chatGPTRegisterOpenAIClient) do(req *http.Request) (*http.Response, []b
 		return nil, nil, err
 	}
 	defer func() { _ = resp.Body.Close() }()
-	body, _ := io.ReadAll(io.LimitReader(resp.Body, 4<<20))
+	body, err := io.ReadAll(io.LimitReader(resp.Body, 10<<20))
+	if err != nil {
+		return resp, nil, err
+	}
 	return resp, body, nil
+}
+
+func (c *chatGPTRegisterOpenAIClient) tlsDo(req *http.Request) (*http.Response, []byte, error) {
+	freq := &fhttp.Request{
+		Method: req.Method,
+		URL:    req.URL,
+		Header: fhttp.Header(req.Header),
+		Body:   req.Body,
+	}
+	resp, err := c.tlsClient.Do(freq)
+	if err != nil {
+		return nil, nil, err
+	}
+	defer func() { _ = resp.Body.Close() }()
+	body, err := io.ReadAll(io.LimitReader(resp.Body, 10<<20))
+	if err != nil {
+		return nil, body, err
+	}
+	return &http.Response{StatusCode: resp.StatusCode, Header: http.Header(resp.Header), Status: resp.Status}, body, nil
 }
 
 func (c *chatGPTRegisterOpenAIClient) requestJSON(ctx context.Context, method, urlValue string, payload any, headers map[string]string, expected ...int) (map[string]any, *http.Response, []byte, error) {
@@ -180,7 +227,7 @@ func (c *chatGPTRegisterOpenAIClient) platformAuthorize(ctx context.Context, ema
 	for k, v := range chatGPTRegisterNavigateHeaders(strings.TrimRight(chatGPTRegisterPlatformBase, "/") + "/") {
 		req.Header.Set(k, v)
 	}
-	resp, body, err := c.do(req)
+	resp, body, err := c.tlsDo(req)
 	if err != nil {
 		return err
 	}
