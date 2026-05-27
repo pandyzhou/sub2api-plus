@@ -128,6 +128,30 @@
                 <input v-model.number="store.formCheckInterval" type="number" min="1" class="native-input w-full" />
               </div>
             </div>
+
+            <div class="rounded-3xl border border-cyan-400/10 bg-slate-900/60 p-4">
+              <div class="mb-4">
+                <div class="text-sm font-black text-white">邮件接收配置</div>
+                <p class="mt-1 text-xs leading-5 text-slate-400">仅用于 ChatGPT 注册机接收 OpenAI 验证码，不影响 Sub2API 账号注册邮件。</p>
+              </div>
+              <div class="grid gap-4 sm:grid-cols-2">
+                <div>
+                  <label class="form-label">邮件服务商</label>
+                  <select v-model="store.formMailProvider" class="native-input w-full">
+                    <option value="mailtm">mail.tm</option>
+                    <option value="custom">自定义 mail.tm 兼容接口</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="form-label">API Base</label>
+                  <input v-model="store.formMailAPIBase" type="url" placeholder="https://api.mail.tm" class="native-input w-full font-mono text-sm" />
+                </div>
+              </div>
+              <div class="mt-4">
+                <label class="form-label">API Key</label>
+                <input v-model="store.formMailAPIKey" type="password" autocomplete="new-password" placeholder="可选，自建接码服务使用 Bearer Token" class="native-input w-full font-mono text-sm" />
+              </div>
+            </div>
           </div>
         </section>
 

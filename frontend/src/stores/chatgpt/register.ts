@@ -36,6 +36,9 @@ export const useChatGPTRegisterStore = defineStore('chatgptRegister', () => {
   const formTargetQuota = ref(100)
   const formTargetAvailable = ref(10)
   const formCheckInterval = ref(5)
+  const formMailProvider = ref('mailtm')
+  const formMailAPIBase = ref('https://api.mail.tm')
+  const formMailAPIKey = ref('')
 
   // SSE connection
   let eventSource: EventSource | null = null
@@ -88,6 +91,9 @@ export const useChatGPTRegisterStore = defineStore('chatgptRegister', () => {
     formTargetQuota.value = config.value.target_quota
     formTargetAvailable.value = config.value.target_available
     formCheckInterval.value = config.value.check_interval
+    formMailProvider.value = config.value.mail_provider || 'mailtm'
+    formMailAPIBase.value = config.value.mail_api_base || 'https://api.mail.tm'
+    formMailAPIKey.value = config.value.mail_api_key || ''
   }
 
   async function save(): Promise<void> {
@@ -102,6 +108,9 @@ export const useChatGPTRegisterStore = defineStore('chatgptRegister', () => {
         target_quota: formTargetQuota.value,
         target_available: formTargetAvailable.value,
         check_interval: formCheckInterval.value,
+        mail_provider: formMailProvider.value,
+        mail_api_base: formMailAPIBase.value,
+        mail_api_key: formMailAPIKey.value,
       }
       const data = await updateRegisterConfig(payload)
       config.value = data.register
@@ -163,6 +172,9 @@ export const useChatGPTRegisterStore = defineStore('chatgptRegister', () => {
     formTargetQuota,
     formTargetAvailable,
     formCheckInterval,
+    formMailProvider,
+    formMailAPIBase,
+    formMailAPIKey,
     // computed
     isRunning,
     stats,

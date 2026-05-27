@@ -141,6 +141,9 @@ func (s *ChatGPTRegisterService) Get() map[string]any {
 			"target_quota":     cfgCopy.TargetQuota,
 			"target_available": cfgCopy.TargetAvail,
 			"check_interval":   cfgCopy.CheckInterval,
+			"mail_provider":    cfgCopy.MailProvider,
+			"mail_api_base":    cfgCopy.MailAPIBase,
+			"mail_api_key":     cfgCopy.MailAPIKey,
 			"stats":            cfgCopy.Stats,
 			"logs":             logsCopy,
 		},
@@ -150,7 +153,6 @@ func (s *ChatGPTRegisterService) Get() map[string]any {
 // Update updates register configuration.
 func (s *ChatGPTRegisterService) Update(updates map[string]any) map[string]any {
 	s.mu.Lock()
-	defer s.mu.Unlock()
 	if v, ok := updates["mode"].(string); ok && (v == "total" || v == "quota" || v == "available") {
 		s.cfg.Mode = v
 	}
@@ -173,15 +175,16 @@ func (s *ChatGPTRegisterService) Update(updates map[string]any) map[string]any {
 		s.cfg.CheckInterval = int(v)
 	}
 	if v, ok := updates["mail_provider"].(string); ok {
-		s.cfg.MailProvider = v
+		s.cfg.MailProvider = strings.TrimSpace(v)
 	}
 	if v, ok := updates["mail_api_base"].(string); ok {
-		s.cfg.MailAPIBase = v
+		s.cfg.MailAPIBase = strings.TrimSpace(v)
 	}
 	if v, ok := updates["mail_api_key"].(string); ok {
-		s.cfg.MailAPIKey = v
+		s.cfg.MailAPIKey = strings.TrimSpace(v)
 	}
 	s.saveConfig()
+	s.mu.Unlock()
 	return s.Get()
 }
 
@@ -451,10 +454,36 @@ type registerTokens struct {
 	IDToken      string
 }
 
+func chatGPTRegisterMailAPIBase(cfg ChatGPTRegisterConfig) string {
+	base := strings.TrimSpace(cfg.MailAPIBase)
+	if base == "" {
+		return "https://api.mail.tm"
+	}
+	return strings.TrimRight(base, "/")
+}
+
+func chatGPTRegisterMailRequest(ctx context.Context, cfg ChatGPTRegisterConfig, method, path string, body *strings.Reader) (*http.Request, error) {
+	if body == nil {
+		body = strings.NewReader("")
+	}
+	req, err := http.NewRequestWithContext(ctx, method, chatGPTRegisterMailAPIBase(cfg)+path, body)
+	if err != nil {
+		return nil, err
+	}
+	if strings.TrimSpace(cfg.MailAPIKey) != "" {
+		req.Header.Set("Authorization", "Bearer "+strings.TrimSpace(cfg.MailAPIKey))
+	}
+	return req, nil
+}
+
 func (s *ChatGPTRegisterService) createTempEmail(cfg ChatGPTRegisterConfig) (*tempMailbox, error) {
-	// Use mail.tm API to create a temp email
+	// Use mail.tm compatible API to create a temp email.
 	client := &http.Client{Timeout: 30 * time.Second}
-	domainsResp, err := client.Get("https://api.mail.tm/domains")
+	domainsReq, err := chatGPTRegisterMailRequest(context.Background(), cfg, "GET", "/domains", strings.NewReader(""))
+	if err != nil {
+		return nil, fmt.Errorf("build domains request: %w", err)
+	}
+	domainsResp, err := client.Do(domainsReq)
 	if err != nil {
 		return nil, fmt.Errorf("fetch domains: %w", err)
 	}
@@ -476,7 +505,12 @@ func (s *ChatGPTRegisterService) createTempEmail(cfg ChatGPTRegisterConfig) (*te
 	password := chatGPTRegisterRandomPassword(12)
 
 	createBody, _ := json.Marshal(map[string]string{"address": email, "password": password})
-	createResp, err := client.Post("https://api.mail.tm/accounts", "application/json", strings.NewReader(string(createBody)))
+	createReq, err := chatGPTRegisterMailRequest(context.Background(), cfg, "POST", "/accounts", strings.NewReader(string(createBody)))
+	if err != nil {
+		return nil, fmt.Errorf("build create mailbox request: %w", err)
+	}
+	createReq.Header.Set("Content-Type", "application/json")
+	createResp, err := client.Do(createReq)
 	if err != nil {
 		return nil, fmt.Errorf("create mailbox: %w", err)
 	}
@@ -552,8 +586,13 @@ func (s *ChatGPTRegisterService) sendOTP(ctx context.Context, deviceID, proxyURL
 
 func (s *ChatGPTRegisterService) waitForOTPCode(ctx context.Context, mailbox *tempMailbox, cfg ChatGPTRegisterConfig) (string, error) {
 	client := &http.Client{Timeout: 10 * time.Second}
-	tokenResp, err := client.Post("https://api.mail.tm/token", "application/json",
+	tokenReq, err := chatGPTRegisterMailRequest(ctx, cfg, "POST", "/token",
 		strings.NewReader(fmt.Sprintf(`{"address":"%s","password":"%s"}`, mailbox.Email, mailbox.Password)))
+	if err != nil {
+		return "", fmt.Errorf("build mail token request: %w", err)
+	}
+	tokenReq.Header.Set("Content-Type", "application/json")
+	tokenResp, err := client.Do(tokenReq)
 	if err != nil {
 		return "", fmt.Errorf("get mail token: %w", err)
 	}
@@ -578,7 +617,7 @@ func (s *ChatGPTRegisterService) waitForOTPCode(ctx context.Context, mailbox *te
 		case <-ctx.Done():
 			return "", ctx.Err()
 		case <-ticker.C:
-			msgReq, _ := http.NewRequest("GET", "https://api.mail.tm/messages", nil)
+			msgReq, _ := chatGPTRegisterMailRequest(ctx, cfg, "GET", "/messages", strings.NewReader(""))
 			msgReq.Header.Set("Authorization", "Bearer "+tokenData.Token)
 			msgResp, err := client.Do(msgReq)
 			if err != nil {

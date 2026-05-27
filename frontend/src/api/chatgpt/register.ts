@@ -20,6 +20,9 @@ export type RegisterUpdatePayload = Partial<{
   target_quota: number
   target_available: number
   check_interval: number
+  mail_provider: string
+  mail_api_base: string
+  mail_api_key: string
 }>
 
 export type RegisterConfig = {
@@ -31,6 +34,9 @@ export type RegisterConfig = {
   target_quota: number
   target_available: number
   check_interval: number
+  mail_provider?: string
+  mail_api_base?: string
+  mail_api_key?: string
   stats: {
     success: number
     fail: number
