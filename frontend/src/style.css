@@ -213,19 +213,7 @@
   :is(.dark) select.input,
   :is(.dark) .input:where(select) {
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%239ca3af' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
-  }
-
-  select.input option,
-  .input:where(select) option {
-    background-color: #fff;
-    color: #111827;
-    padding: 0.5rem;
-  }
-
-  :is(.dark) select.input option,
-  :is(.dark) .input:where(select) option {
-    background-color: #1e1e2e;
-    color: #e5e7eb;
+    color-scheme: dark;
   }
 
   /* ============ 玻璃效果 ============ */

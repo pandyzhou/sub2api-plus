@@ -1,0 +1,17 @@
+# Sub2API Plus 上游同步记录
+#
+# 仓库关系：
+#   origin   = https://github.com/pandyzhou/sub2api-plus   （我们自己的仓库）
+#   upstream = https://github.com/Wei-Shaw/sub2api         （官方仓库，用于同步更新）
+#
+# 用法：
+#   bash scripts/sync-upstream.sh           检查上游新变更
+#   更新此文件的 COMMIT_HASH → 标记已同步
+
+# 当前已同步到的官方 commit
+COMMIT_HASH=89d96f4b25c6e5ead427f67b54a8aae5fdf993e4
+COMMIT_MSG="chore: sync VERSION to 0.1.132 [skip ci]"
+SYNC_DATE=2026-05-27
+
+# 官方 tag
+TAG=v0.1.132
