@@ -136,7 +136,7 @@ func (r *chatGPTPoolAccountRepoStub) ListSchedulableUngroupedByPlatforms(context
 func (r *chatGPTPoolAccountRepoStub) SetRateLimited(context.Context, int64, time.Time) error {
 	return nil
 }
-func (r *chatGPTPoolAccountRepoStub) SetModelRateLimit(context.Context, int64, string, time.Time) error {
+func (r *chatGPTPoolAccountRepoStub) SetModelRateLimit(context.Context, int64, string, time.Time, ...string) error {
 	return nil
 }
 func (r *chatGPTPoolAccountRepoStub) SetOverloaded(context.Context, int64, time.Time) error {

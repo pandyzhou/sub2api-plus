@@ -220,7 +220,7 @@ func (r *chatGPTRegisterAccountRepoStub) ListSchedulableUngroupedByPlatforms(con
 func (r *chatGPTRegisterAccountRepoStub) SetRateLimited(context.Context, int64, time.Time) error {
 	return nil
 }
-func (r *chatGPTRegisterAccountRepoStub) SetModelRateLimit(context.Context, int64, string, time.Time) error {
+func (r *chatGPTRegisterAccountRepoStub) SetModelRateLimit(context.Context, int64, string, time.Time, ...string) error {
 	return nil
 }
 func (r *chatGPTRegisterAccountRepoStub) SetOverloaded(context.Context, int64, time.Time) error {
