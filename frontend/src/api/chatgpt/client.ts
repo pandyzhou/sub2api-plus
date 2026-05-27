@@ -7,7 +7,7 @@
 
 import { apiClient } from '../client'
 
-const BASE = '/api/v1/admin/chatgpt'
+const BASE = '/admin/chatgpt'
 
 export type ChatGPTAccount = {
   access_token: string

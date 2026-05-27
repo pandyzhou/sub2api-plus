@@ -15,7 +15,6 @@ import {
   startRegister,
   stopRegister,
   resetRegister,
-  createRegisterEventSource,
   type RegisterConfig,
   type RegisterMode,
   type RegisterUpdatePayload,
@@ -139,22 +138,9 @@ export const useChatGPTRegisterStore = defineStore('chatgptRegister', () => {
   }
 
   function startSSE(): void {
+    // Browser EventSource cannot attach the JWT Authorization header used by sub2api admin APIs.
+    // Keep this as a no-op; explicit load/save/start/stop actions refresh the register state.
     stopSSE()
-
-    eventSource = createRegisterEventSource()
-    eventSource.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data) as RegisterConfig
-        if (data && typeof data === 'object') {
-          config.value = data
-        }
-      } catch {
-        // ignore parse errors
-      }
-    }
-    eventSource.onerror = () => {
-      // SSE will auto-reconnect
-    }
   }
 
   function stopSSE(): void {

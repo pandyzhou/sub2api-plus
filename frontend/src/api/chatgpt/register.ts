@@ -6,7 +6,7 @@
 
 import { apiClient } from '../client'
 
-const BASE = '/api/v1/admin/chatgpt'
+const BASE = '/admin/chatgpt'
 
 // ==================== Types ====================
 
@@ -94,7 +94,7 @@ export async function resetRegister(): Promise<{ register: RegisterConfig }> {
  * @returns EventSource instance
  */
 export function createRegisterEventSource(): EventSource {
-  // Use sub2api's own SSE endpoint for register events
-  const url = `/api/v1/admin/chatgpt/register/events`
+  // Native register events are optional; EventSource uses the absolute API path.
+  const url = `/api/v1${BASE}/register/events`
   return new EventSource(url)
 }
