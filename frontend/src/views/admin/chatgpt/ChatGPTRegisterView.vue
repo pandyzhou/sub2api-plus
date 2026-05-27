@@ -80,24 +80,37 @@
                     :key="mode.value"
                     type="button"
                     class="rounded-lg px-3 py-2 text-sm font-medium transition-colors"
+                    :aria-pressed="store.formMode === mode.value"
                     :class="store.formMode === mode.value
-                      ? 'bg-white text-primary-700 shadow-sm dark:bg-dark-800 dark:text-primary-300'
+                      ? 'bg-primary-500 text-white shadow-sm shadow-primary-500/25 dark:bg-primary-500 dark:text-white'
                       : 'text-gray-600 hover:bg-white/70 dark:text-gray-400 dark:hover:bg-dark-800/70'"
                     @click="store.formMode = mode.value"
                   >
                     {{ mode.label }}
                   </button>
                 </div>
+                <p class="input-hint">{{ activeModeHint }}</p>
               </div>
 
               <div class="grid gap-4 sm:grid-cols-2">
                 <div>
-                  <label class="input-label">{{ t('chatgpt.register.fieldTotal') }}</label>
-                  <input v-model.number="store.formTotal" type="number" min="1" class="input" />
-                </div>
-                <div>
                   <label class="input-label">{{ t('chatgpt.register.fieldThreads') }}</label>
                   <input v-model.number="store.formThreads" type="number" min="1" max="50" class="input" />
+                </div>
+                <div v-if="store.formMode === 'total'">
+                  <label class="input-label">{{ t('chatgpt.register.fieldTotal') }}</label>
+                  <input v-model.number="store.formTotal" type="number" min="1" class="input" />
+                  <p class="input-hint">总量模式会按注册总数推进进度。</p>
+                </div>
+                <div v-else-if="store.formMode === 'quota'">
+                  <label class="input-label">{{ t('chatgpt.register.fieldTargetQuota') }}</label>
+                  <input v-model.number="store.formTargetQuota" type="number" min="1" class="input" />
+                  <p class="input-hint">额度模式会以目标额度作为达成条件。</p>
+                </div>
+                <div v-else>
+                  <label class="input-label">{{ t('chatgpt.register.fieldTargetAvailable') }}</label>
+                  <input v-model.number="store.formTargetAvailable" type="number" min="1" class="input" />
+                  <p class="input-hint">可用模式会以目标可用账号数作为达成条件。</p>
                 </div>
               </div>
 
@@ -107,19 +120,10 @@
                 <p class="input-hint">建议为 OpenAI 注册流程配置代理；可信网络内可留空。</p>
               </div>
 
-              <div class="grid gap-4 sm:grid-cols-3">
-                <div>
-                  <label class="input-label">{{ t('chatgpt.register.fieldTargetQuota') }}</label>
-                  <input v-model.number="store.formTargetQuota" type="number" min="1" class="input" />
-                </div>
-                <div>
-                  <label class="input-label">{{ t('chatgpt.register.fieldTargetAvailable') }}</label>
-                  <input v-model.number="store.formTargetAvailable" type="number" min="1" class="input" />
-                </div>
-                <div>
-                  <label class="input-label">{{ t('chatgpt.register.fieldCheckInterval') }}</label>
-                  <input v-model.number="store.formCheckInterval" type="number" min="1" class="input" />
-                </div>
+              <div v-if="store.formMode !== 'total'">
+                <label class="input-label">{{ t('chatgpt.register.fieldCheckInterval') }}</label>
+                <input v-model.number="store.formCheckInterval" type="number" min="1" class="input" />
+                <p class="input-hint">非总量模式会定期检查当前额度或可用数量。</p>
               </div>
             </div>
           </section>
@@ -208,6 +212,17 @@ const modeOptions = computed<Array<{ value: RegisterMode; label: string }>>(() =
   { value: 'quota', label: t('chatgpt.register.modeQuota') },
   { value: 'available', label: t('chatgpt.register.modeAvailable') },
 ])
+
+const activeModeHint = computed(() => {
+  switch (store.formMode) {
+    case 'quota':
+      return '当前为额度模式：只配置目标额度和检查间隔。'
+    case 'available':
+      return '当前为可用模式：只配置目标可用数和检查间隔。'
+    default:
+      return '当前为总量模式：只配置注册总数。'
+  }
+})
 
 const metrics = computed(() => [
   { label: t('chatgpt.register.statSuccess'), value: store.stats?.success ?? 0, color: 'text-emerald-600 dark:text-emerald-400', dot: 'bg-emerald-500', iconBg: 'bg-emerald-100 dark:bg-emerald-900/30' },
