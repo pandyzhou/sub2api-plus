@@ -175,9 +175,7 @@
                   <div class="grid gap-4 sm:grid-cols-2">
                     <div>
                       <label class="input-label">类型</label>
-                      <select v-model="provider.type" class="input">
-                        <option v-for="item in providerTypeOptions" :key="item.value" :value="item.value">{{ item.label }}</option>
-                      </select>
+                      <Select v-model="provider.type" :options="providerTypeOptions" />
                     </div>
                     <div v-if="showField(provider.type, 'api_base')">
                       <label class="input-label">API Base</label>
@@ -213,14 +211,7 @@
                     </div>
                     <div v-if="showField(provider.type, 'cf_auth_mode')">
                       <label class="input-label">CF 认证模式</label>
-                      <select v-model="provider.cf_auth_mode" class="input">
-                        <option value="">默认</option>
-                        <option value="jwt">jwt</option>
-                        <option value="apikey">apikey</option>
-                        <option value="x-api-key">x-api-key</option>
-                        <option value="query-key">query-key</option>
-                        <option value="none">none</option>
-                      </select>
+                      <Select v-model="provider.cf_auth_mode" :options="cfAuthModeOptions" />
                     </div>
                     <div v-if="showField(provider.type, 'cf_messages_path')">
                       <label class="input-label">CF 消息路径</label>
@@ -296,6 +287,7 @@
 import { computed, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import AppLayout from '@/components/layout/AppLayout.vue'
+import Select from '@/components/common/Select.vue'
 import { useChatGPTRegisterStore } from '@/stores/chatgpt'
 import type { RegisterMailProvider, RegisterMode } from '@/api/chatgpt'
 
@@ -331,6 +323,15 @@ const providerTypeOptions = [
   { value: 'duckmail', label: 'DuckMail' },
   { value: 'gptmail', label: 'GPTMail' },
   { value: 'yyds_mail', label: 'YYDS Mail' },
+]
+
+const cfAuthModeOptions = [
+  { value: '', label: '默认' },
+  { value: 'jwt', label: 'jwt' },
+  { value: 'apikey', label: 'apikey' },
+  { value: 'x-api-key', label: 'x-api-key' },
+  { value: 'query-key', label: 'query-key' },
+  { value: 'none', label: 'none' },
 ]
 
 const fieldsByProvider: Record<string, string[]> = {

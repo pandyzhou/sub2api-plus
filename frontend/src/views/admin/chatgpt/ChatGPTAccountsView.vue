@@ -89,17 +89,8 @@
               class="input"
             />
             <div class="grid gap-3 sm:grid-cols-2">
-              <select v-model="store.filterStatus" class="input">
-                <option value="全部">{{ t('chatgpt.accounts.allStatus') }}</option>
-                <option value="正常">{{ t('chatgpt.accounts.statusNormal') }}</option>
-                <option value="限流">{{ t('chatgpt.accounts.statusLimited') }}</option>
-                <option value="异常">{{ t('chatgpt.accounts.statusError') }}</option>
-                <option value="禁用">{{ t('chatgpt.accounts.statusDisabled') }}</option>
-              </select>
-              <select v-model="store.filterType" class="input">
-                <option value="全部">全部类型</option>
-                <option v-for="type in store.typeOptions" :key="type" :value="type">{{ type }}</option>
-              </select>
+              <Select v-model="store.filterStatus" :options="statusFilterOptions" />
+              <Select v-model="store.filterType" :options="typeFilterOptions" />
             </div>
           </div>
 
@@ -266,12 +257,7 @@
             </div>
             <div>
               <label class="input-label">{{ t('chatgpt.accounts.colStatus') }}</label>
-              <select v-model="store.editStatus" class="input">
-                <option value="正常">{{ t('chatgpt.accounts.statusNormal') }}</option>
-                <option value="限流">{{ t('chatgpt.accounts.statusLimited') }}</option>
-                <option value="异常">{{ t('chatgpt.accounts.statusError') }}</option>
-                <option value="禁用">{{ t('chatgpt.accounts.statusDisabled') }}</option>
-              </select>
+              <Select v-model="store.editStatus" :options="editStatusOptions" />
             </div>
             <div>
               <label class="input-label">{{ t('chatgpt.accounts.colQuota') }}</label>
@@ -294,10 +280,7 @@
       <div v-if="store.showExportDialog" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
         <div class="w-full max-w-sm rounded-2xl border border-gray-200 bg-white p-6 shadow-xl dark:border-dark-700 dark:bg-dark-800">
           <h2 class="mb-5 text-xl font-semibold text-gray-900 dark:text-white">{{ t('chatgpt.accounts.exportTitle') }}</h2>
-          <select v-model="store.exportFormat" class="input mb-5">
-            <option value="json">JSON</option>
-            <option value="zip">ZIP</option>
-          </select>
+          <Select v-model="store.exportFormat" :options="exportFormatOptions" class="mb-5" />
           <div class="flex justify-end gap-2">
             <button @click="store.showExportDialog = false" class="btn btn-secondary">{{ t('common.cancel') }}</button>
             <button @click="store.downloadExport()" class="btn btn-primary">{{ t('chatgpt.accounts.doExport') }}</button>
@@ -327,6 +310,7 @@
 import { ref, onMounted, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import AppLayout from '@/components/layout/AppLayout.vue'
+import Select from '@/components/common/Select.vue'
 import { useChatGPTAccountsStore } from '@/stores/chatgpt'
 
 const { t } = useI18n()
@@ -335,6 +319,31 @@ const store = useChatGPTAccountsStore()
 const showImportDialog = ref(false)
 const showDeleteConfirm = ref(false)
 const importText = ref('')
+
+const statusFilterOptions = computed(() => [
+  { value: '全部', label: t('chatgpt.accounts.allStatus') },
+  { value: '正常', label: t('chatgpt.accounts.statusNormal') },
+  { value: '限流', label: t('chatgpt.accounts.statusLimited') },
+  { value: '异常', label: t('chatgpt.accounts.statusError') },
+  { value: '禁用', label: t('chatgpt.accounts.statusDisabled') },
+])
+
+const typeFilterOptions = computed(() => {
+  const types = store.typeOptions || []
+  return [{ value: '全部', label: '全部类型' }, ...types.map((tp: string) => ({ value: tp, label: tp }))]
+})
+
+const editStatusOptions = [
+  { value: '正常', label: t('chatgpt.accounts.statusNormal') },
+  { value: '限流', label: t('chatgpt.accounts.statusLimited') },
+  { value: '异常', label: t('chatgpt.accounts.statusError') },
+  { value: '禁用', label: t('chatgpt.accounts.statusDisabled') },
+]
+
+const exportFormatOptions = [
+  { value: 'json', label: 'JSON' },
+  { value: 'zip', label: 'ZIP' },
+]
 
 const statCards = computed(() => [
   { key: 'total', label: t('chatgpt.accounts.statsTotal'), value: store.statusCounts.total ?? 0, color: 'text-gray-900 dark:text-white', dot: 'bg-gray-500', iconBg: 'bg-gray-100 dark:bg-dark-700' },
