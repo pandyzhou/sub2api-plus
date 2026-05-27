@@ -216,6 +216,7 @@ function formatLogTime(timeStr?: string): string {
   font-family: "Aptos", "Segoe UI Variable", "Helvetica Neue", sans-serif;
 }
 .register-hero {
+  position: relative;
   background:
     radial-gradient(circle at 8% 0%, rgba(6, 182, 212, 0.14), transparent 32%),
     radial-gradient(circle at 92% 10%, rgba(16, 185, 129, 0.12), transparent 30%),
@@ -225,6 +226,7 @@ function formatLogTime(timeStr?: string): string {
   content: "";
   position: absolute;
   inset: 0;
+  pointer-events: none;
   opacity: 0.18;
   background-image: repeating-linear-gradient(120deg, rgba(226, 232, 240, 0.12) 0, rgba(226, 232, 240, 0.12) 1px, transparent 1px, transparent 18px);
   mask-image: linear-gradient(90deg, black, transparent 72%);

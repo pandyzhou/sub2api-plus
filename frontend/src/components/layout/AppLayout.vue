@@ -39,7 +39,9 @@ const isAdmin = computed(() => authStore.user?.role === 'admin')
 
 const { replayTour } = useOnboardingTour({
   storageKey: isAdmin.value ? 'admin_guide' : 'user_guide',
-  autoStart: true
+  // 避免自动弹出的 driver.js 遮罩覆盖页面，导致后台表单/按钮无法交互。
+  // 用户仍可通过“指南”入口手动打开引导。
+  autoStart: false
 })
 
 const onboardingStore = useOnboardingStore()
