@@ -1,12 +1,5 @@
 <template>
   <AppLayout>
-    <ChatGPTConnectionSettings
-      :show="showConnectionDialog"
-      :force-setup="true"
-      @connected="onConnected"
-      @cancel="showConnectionDialog = false"
-    />
-
     <div class="space-y-6 p-4 sm:p-6">
       <!-- Header -->
       <div class="flex items-center justify-between">
@@ -159,16 +152,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
+import { onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import { useChatGPTRegisterStore } from '@/stores/chatgpt'
-import ChatGPTConnectionSettings from './components/ChatGPTConnectionSettings.vue'
 
 const { t } = useI18n()
 const store = useChatGPTRegisterStore()
-
-const showConnectionDialog = ref(false)
 
 onMounted(() => {
   store.load()
@@ -178,12 +168,6 @@ onMounted(() => {
 onUnmounted(() => {
   store.stopSSE()
 })
-
-function onConnected(): void {
-  showConnectionDialog.value = false
-  store.load()
-  store.startSSE()
-}
 
 function formatLogTime(timeStr?: string): string {
   if (!timeStr) return ''

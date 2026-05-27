@@ -1,12 +1,5 @@
 <template>
   <AppLayout>
-    <ChatGPTConnectionSettings
-      :show="showConnectionDialog"
-      :force-setup="true"
-      @connected="onConnected"
-      @cancel="showConnectionDialog = false"
-    />
-
     <div class="space-y-6 p-4 sm:p-6">
       <!-- Header -->
       <div class="flex items-center justify-between">
@@ -252,12 +245,10 @@ import { ref, onMounted, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import { useChatGPTAccountsStore } from '@/stores/chatgpt'
-import ChatGPTConnectionSettings from './components/ChatGPTConnectionSettings.vue'
 
 const { t } = useI18n()
 const store = useChatGPTAccountsStore()
 
-const showConnectionDialog = ref(false)
 const showImportDialog = ref(false)
 const showDeleteConfirm = ref(false)
 const importText = ref('')
@@ -274,11 +265,6 @@ const statCards = computed(() => [
 onMounted(() => {
   store.load()
 })
-
-function onConnected(): void {
-  showConnectionDialog.value = false
-  store.load()
-}
 
 function toggleSelectAll(): void {
   if (store.selectedCount > 0 && store.selectedCount === store.filteredAccounts.length) {
