@@ -10,11 +10,16 @@ export {
   deleteAccounts,
   refreshAccounts,
   updateAccount,
+  fetchAccountPoolConfig,
+  updateAccountPoolConfig,
   exportAccounts,
 } from './client'
 
 export type {
   ChatGPTAccount,
+  ChatGPTAccountPoolConfig,
+  ChatGPTAccountExportFormat,
+  ChatGPTAccountExportResponse,
   ChatGPTAccountListResponse,
   ChatGPTAccountMutationResponse,
 } from './client'

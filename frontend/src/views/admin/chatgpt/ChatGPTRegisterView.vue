@@ -129,36 +129,117 @@
           </section>
 
           <section class="card">
-            <div class="card-header">
-              <h2 class="text-lg font-semibold text-gray-900 dark:text-white">邮件接收配置</h2>
-              <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                仅用于 ChatGPT 注册机接收 OpenAI 验证码，不影响 Sub2API 账号注册邮件。
-              </p>
+            <div class="card-header flex items-start justify-between gap-4">
+              <div>
+                <h2 class="text-lg font-semibold text-gray-900 dark:text-white">邮件接收配置</h2>
+                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                  配置注册机接码超时和多个邮件 provider，按顺序选择启用的 provider 创建邮箱。
+                </p>
+              </div>
+              <button type="button" class="btn btn-secondary btn-sm" @click="store.addProvider()">添加 provider</button>
             </div>
 
-            <div class="card-body space-y-4">
-              <div class="grid gap-4 sm:grid-cols-2">
+            <div class="card-body space-y-5">
+              <div class="grid gap-4 sm:grid-cols-3">
                 <div>
-                  <label class="input-label">邮件服务商</label>
-                  <select v-model="store.formMailProvider" class="input">
-                    <option value="mailtm">mail.tm</option>
-                    <option value="custom">自定义 mail.tm 兼容接口</option>
-                  </select>
+                  <label class="input-label">请求超时（秒）</label>
+                  <input v-model.number="store.formMail.request_timeout" type="number" min="1" class="input" />
                 </div>
                 <div>
-                  <label class="input-label">API Base</label>
-                  <input v-model="store.formMailAPIBase" type="url" placeholder="https://api.mail.tm" class="input font-mono text-sm" />
+                  <label class="input-label">等待验证码超时（秒）</label>
+                  <input v-model.number="store.formMail.wait_timeout" type="number" min="1" class="input" />
+                </div>
+                <div>
+                  <label class="input-label">轮询间隔（秒）</label>
+                  <input v-model.number="store.formMail.wait_interval" type="number" min="1" class="input" />
                 </div>
               </div>
-              <div>
-                <label class="input-label">API Key</label>
-                <input
-                  v-model="store.formMailAPIKey"
-                  type="password"
-                  autocomplete="new-password"
-                  placeholder="可选，自建接码服务使用 Bearer Token"
-                  class="input font-mono text-sm"
-                />
+
+              <div class="space-y-4">
+                <div
+                  v-for="(provider, index) in store.formMail.providers"
+                  :key="index"
+                  class="rounded-2xl border border-gray-200 bg-gray-50 p-4 dark:border-dark-700 dark:bg-dark-900/60"
+                >
+                  <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div class="flex flex-wrap items-center gap-3">
+                      <span class="text-sm font-semibold text-gray-900 dark:text-white">Provider #{{ index + 1 }}</span>
+                      <label class="inline-flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
+                        <input v-model="provider.enable" type="checkbox" class="rounded border-gray-300 text-primary-600 focus:ring-primary-500 dark:border-dark-600 dark:bg-dark-800" />
+                        启用
+                      </label>
+                    </div>
+                    <button type="button" class="btn btn-danger btn-sm" @click="store.removeProvider(index)">删除</button>
+                  </div>
+
+                  <div class="grid gap-4 sm:grid-cols-2">
+                    <div>
+                      <label class="input-label">类型</label>
+                      <select v-model="provider.type" class="input">
+                        <option v-for="item in providerTypeOptions" :key="item.value" :value="item.value">{{ item.label }}</option>
+                      </select>
+                    </div>
+                    <div v-if="showField(provider.type, 'api_base')">
+                      <label class="input-label">API Base</label>
+                      <input v-model="provider.api_base" type="url" placeholder="https://api.mail.tm" class="input font-mono text-sm" />
+                    </div>
+                    <div v-if="showField(provider.type, 'api_key')">
+                      <label class="input-label">API Key</label>
+                      <input v-model="provider.api_key" type="password" autocomplete="new-password" class="input font-mono text-sm" />
+                    </div>
+                    <div v-if="showField(provider.type, 'admin_email')">
+                      <label class="input-label">Admin Email</label>
+                      <input v-model="provider.admin_email" type="email" class="input font-mono text-sm" />
+                    </div>
+                    <div v-if="showField(provider.type, 'admin_password')">
+                      <label class="input-label">Admin Password</label>
+                      <input v-model="provider.admin_password" type="password" autocomplete="new-password" class="input font-mono text-sm" />
+                    </div>
+                    <div v-if="showField(provider.type, 'ddg_token')">
+                      <label class="input-label">DDG Token</label>
+                      <input v-model="provider.ddg_token" type="password" autocomplete="new-password" class="input font-mono text-sm" />
+                    </div>
+                    <div v-if="showField(provider.type, 'cf_inbox_jwt')">
+                      <label class="input-label">CF Inbox JWT</label>
+                      <input v-model="provider.cf_inbox_jwt" type="password" autocomplete="new-password" class="input font-mono text-sm" />
+                    </div>
+                    <div v-if="showField(provider.type, 'cf_auth_mode')">
+                      <label class="input-label">CF Auth Mode</label>
+                      <select v-model="provider.cf_auth_mode" class="input">
+                        <option value="">默认</option>
+                        <option value="jwt">jwt</option>
+                        <option value="apikey">apikey</option>
+                        <option value="none">none</option>
+                      </select>
+                    </div>
+                    <div v-if="showField(provider.type, 'email_prefix')">
+                      <label class="input-label">Email Prefix</label>
+                      <input v-model="provider.email_prefix" type="text" class="input font-mono text-sm" />
+                    </div>
+                    <div v-if="showField(provider.type, 'default_domain')">
+                      <label class="input-label">Default Domain</label>
+                      <input v-model="provider.default_domain" type="text" class="input font-mono text-sm" />
+                    </div>
+                    <div v-if="showField(provider.type, 'domain')" class="sm:col-span-2">
+                      <label class="input-label">Domain（每行一个）</label>
+                      <textarea :value="listToText(provider.domain)" rows="3" class="input font-mono text-xs" @input="updateList(provider, 'domain', $event)" />
+                    </div>
+                    <div v-if="showField(provider.type, 'subdomain')" class="sm:col-span-2">
+                      <label class="input-label">Subdomain（每行一个）</label>
+                      <textarea :value="listToText(provider.subdomain)" rows="3" class="input font-mono text-xs" @input="updateList(provider, 'subdomain', $event)" />
+                    </div>
+                    <div class="flex flex-wrap gap-4 sm:col-span-2">
+                      <label v-if="showField(provider.type, 'wildcard')" class="inline-flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
+                        <input v-model="provider.wildcard" type="checkbox" class="rounded border-gray-300 text-primary-600 focus:ring-primary-500 dark:border-dark-600 dark:bg-dark-800" />
+                        Wildcard
+                      </label>
+                      <label v-if="showField(provider.type, 'random_subdomain')" class="inline-flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
+                        <input v-model="provider.random_subdomain" type="checkbox" class="rounded border-gray-300 text-primary-600 focus:ring-primary-500 dark:border-dark-600 dark:bg-dark-800" />
+                        Random Subdomain
+                      </label>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </section>
@@ -202,7 +283,7 @@ import { computed, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import { useChatGPTRegisterStore } from '@/stores/chatgpt'
-import type { RegisterMode } from '@/api/chatgpt'
+import type { RegisterMailProvider, RegisterMode } from '@/api/chatgpt'
 
 const { t } = useI18n()
 const store = useChatGPTRegisterStore()
@@ -223,6 +304,49 @@ const activeModeHint = computed(() => {
       return '当前为总量模式：只配置注册总数。'
   }
 })
+
+const providerTypeOptions = [
+  { value: 'mailtm', label: 'mail.tm' },
+  { value: 'custom', label: '自定义 mail.tm 兼容接口' },
+  { value: 'cloudflare_temp_email', label: 'Cloudflare Temp Email' },
+  { value: 'tempmail_lol', label: 'tempmail.lol' },
+  { value: 'inbucket', label: 'Inbucket' },
+  { value: 'moemail', label: 'Moemail' },
+  { value: 'cloudmail_gen', label: 'CloudMail Gen' },
+  { value: 'ddg_mail', label: 'DDG Mail' },
+  { value: 'duckmail', label: 'DuckMail' },
+  { value: 'gptmail', label: 'GPTMail' },
+  { value: 'yyds_mail', label: 'YYDS Mail' },
+]
+
+const fieldsByProvider: Record<string, string[]> = {
+  mailtm: ['api_base', 'api_key'],
+  custom: ['api_base', 'api_key', 'domain'],
+  cloudflare_temp_email: ['api_base', 'api_key', 'domain', 'cf_inbox_jwt', 'cf_auth_mode', 'wildcard', 'random_subdomain', 'email_prefix', 'default_domain'],
+  tempmail_lol: ['api_base', 'api_key', 'domain'],
+  inbucket: ['api_base', 'domain', 'email_prefix'],
+  moemail: ['api_base', 'api_key', 'domain'],
+  cloudmail_gen: ['api_base', 'api_key', 'domain', 'subdomain', 'wildcard', 'random_subdomain', 'email_prefix', 'default_domain'],
+  ddg_mail: ['ddg_token', 'email_prefix'],
+  duckmail: ['ddg_token', 'email_prefix'],
+  gptmail: ['api_base', 'api_key', 'domain', 'admin_email', 'admin_password'],
+  yyds_mail: ['api_base', 'api_key', 'domain', 'admin_email', 'admin_password'],
+}
+
+function showField(type: string, field: string): boolean {
+  return (fieldsByProvider[type] || fieldsByProvider.custom).includes(field)
+}
+
+function listToText(value?: string[]): string {
+  return Array.isArray(value) ? value.join('\n') : ''
+}
+
+function updateList(provider: RegisterMailProvider, field: 'domain' | 'subdomain', event: Event): void {
+  provider[field] = (event.target as HTMLTextAreaElement).value
+    .split('\n')
+    .map((item) => item.trim())
+    .filter(Boolean)
+}
 
 const metrics = computed(() => [
   { label: t('chatgpt.register.statSuccess'), value: store.stats?.success ?? 0, color: 'text-emerald-600 dark:text-emerald-400', dot: 'bg-emerald-500', iconBg: 'bg-emerald-100 dark:bg-emerald-900/30' },

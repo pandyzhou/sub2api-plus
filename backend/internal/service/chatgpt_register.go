@@ -7,8 +7,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"net/http"
-	"net/url"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -27,18 +25,55 @@ type ChatGPTRegisterService struct {
 }
 
 type ChatGPTRegisterConfig struct {
-	Enabled       bool                 `json:"enabled"`
-	Mode          string               `json:"mode"` // total | quota | available
-	Total         int                  `json:"total"`
-	Threads       int                  `json:"threads"`
-	Proxy         string               `json:"proxy"`
-	TargetQuota   int                  `json:"target_quota"`
-	TargetAvail   int                  `json:"target_available"`
-	CheckInterval int                  `json:"check_interval"`
-	MailProvider  string               `json:"mail_provider"` // e.g. "mailtm", "custom"
-	MailAPIBase   string               `json:"mail_api_base"` // custom mail provider base URL
-	MailAPIKey    string               `json:"mail_api_key"`  // custom mail provider API key
-	Stats         ChatGPTRegisterStats `json:"stats"`
+	Enabled       bool                      `json:"enabled"`
+	Mode          string                    `json:"mode"` // total | quota | available
+	Total         int                       `json:"total"`
+	Threads       int                       `json:"threads"`
+	Proxy         string                    `json:"proxy"`
+	TargetQuota   int                       `json:"target_quota"`
+	TargetAvail   int                       `json:"target_available"`
+	CheckInterval int                       `json:"check_interval"`
+	Mail          ChatGPTRegisterMailConfig `json:"mail"`
+	// Legacy flat fields kept for API/backward-compatible migration.
+	MailProvider string               `json:"mail_provider,omitempty"`
+	MailAPIBase  string               `json:"mail_api_base,omitempty"`
+	MailAPIKey   string               `json:"mail_api_key,omitempty"`
+	Stats        ChatGPTRegisterStats `json:"stats"`
+}
+
+type ChatGPTRegisterMailConfig struct {
+	RequestTimeout float64                             `json:"request_timeout"`
+	WaitTimeout    float64                             `json:"wait_timeout"`
+	WaitInterval   float64                             `json:"wait_interval"`
+	UserAgent      string                              `json:"user_agent,omitempty"`
+	Providers      []ChatGPTRegisterMailProviderConfig `json:"providers"`
+}
+
+type ChatGPTRegisterMailProviderConfig struct {
+	Type            string                    `json:"type"`
+	Enable          bool                      `json:"enable"`
+	ProviderRef     string                    `json:"provider_ref,omitempty"`
+	Label           string                    `json:"label,omitempty"`
+	APIBase         string                    `json:"api_base,omitempty"`
+	APIKey          string                    `json:"api_key,omitempty"`
+	AdminPassword   string                    `json:"admin_password,omitempty"`
+	AdminEmail      string                    `json:"admin_email,omitempty"`
+	DDGToken        string                    `json:"ddg_token,omitempty"`
+	CFInboxJWT      string                    `json:"cf_inbox_jwt,omitempty"`
+	CFAPIBase       string                    `json:"cf_api_base,omitempty"`
+	CFAPIKey        string                    `json:"cf_api_key,omitempty"`
+	CFAuthMode      string                    `json:"cf_auth_mode,omitempty"`
+	CFDomain        chatGPTRegisterStringList `json:"cf_domain,omitempty"`
+	CFCreatePath    string                    `json:"cf_create_path,omitempty"`
+	CFMessagesPath  string                    `json:"cf_messages_path,omitempty"`
+	Domain          chatGPTRegisterStringList `json:"domain,omitempty"`
+	Subdomain       chatGPTRegisterStringList `json:"subdomain,omitempty"`
+	DefaultDomain   string                    `json:"default_domain,omitempty"`
+	ExpiryTime      int                       `json:"expiry_time,omitempty"`
+	RandomSubdomain *bool                     `json:"random_subdomain,omitempty"`
+	Wildcard        bool                      `json:"wildcard,omitempty"`
+	EmailPrefix     string                    `json:"email_prefix,omitempty"`
+	AuthMode        string                    `json:"auth_mode,omitempty"`
 }
 
 type ChatGPTRegisterStats struct {
@@ -77,7 +112,7 @@ func NewChatGPTRegisterService(store SettingRepository, accounts AccountReposito
 }
 
 func defaultRegisterConfig() ChatGPTRegisterConfig {
-	return ChatGPTRegisterConfig{
+	cfg := ChatGPTRegisterConfig{
 		Enabled:       false,
 		Mode:          "total",
 		Total:         10,
@@ -85,10 +120,20 @@ func defaultRegisterConfig() ChatGPTRegisterConfig {
 		TargetQuota:   100,
 		TargetAvail:   10,
 		CheckInterval: 5,
+		Mail: ChatGPTRegisterMailConfig{
+			RequestTimeout: 30,
+			WaitTimeout:    120,
+			WaitInterval:   3,
+			Providers: []ChatGPTRegisterMailProviderConfig{{
+				Type:   "mailtm",
+				Enable: true,
+			}},
+		},
 		Stats: ChatGPTRegisterStats{
 			Threads: 3,
 		},
 	}
+	return chatGPTRegisterNormalizeConfig(cfg)
 }
 
 func (s *ChatGPTRegisterService) loadConfig() {
@@ -103,7 +148,7 @@ func (s *ChatGPTRegisterService) loadConfig() {
 	}
 	var cfg ChatGPTRegisterConfig
 	if json.Unmarshal([]byte(raw), &cfg) == nil {
-		s.cfg = cfg
+		s.cfg = chatGPTRegisterNormalizeConfig(cfg)
 	}
 }
 
@@ -124,7 +169,7 @@ func (s *ChatGPTRegisterService) saveConfig() {
 func (s *ChatGPTRegisterService) Get() map[string]any {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	cfgCopy := s.cfg
+	cfgCopy := chatGPTRegisterNormalizeConfig(s.cfg)
 	cfgCopy.Stats.Threads = cfgCopy.Threads
 	logsCopy := make([]ChatGPTRegisterLog, len(s.logs))
 	copy(logsCopy, s.logs)
@@ -141,6 +186,7 @@ func (s *ChatGPTRegisterService) Get() map[string]any {
 			"target_quota":     cfgCopy.TargetQuota,
 			"target_available": cfgCopy.TargetAvail,
 			"check_interval":   cfgCopy.CheckInterval,
+			"mail":             cfgCopy.Mail,
 			"mail_provider":    cfgCopy.MailProvider,
 			"mail_api_base":    cfgCopy.MailAPIBase,
 			"mail_api_key":     cfgCopy.MailAPIKey,
@@ -174,15 +220,32 @@ func (s *ChatGPTRegisterService) Update(updates map[string]any) map[string]any {
 	if v, ok := updates["check_interval"].(float64); ok && v >= 1 {
 		s.cfg.CheckInterval = int(v)
 	}
+	legacyMailChanged := false
 	if v, ok := updates["mail_provider"].(string); ok {
 		s.cfg.MailProvider = strings.TrimSpace(v)
+		legacyMailChanged = true
 	}
 	if v, ok := updates["mail_api_base"].(string); ok {
 		s.cfg.MailAPIBase = strings.TrimSpace(v)
+		legacyMailChanged = true
 	}
 	if v, ok := updates["mail_api_key"].(string); ok {
 		s.cfg.MailAPIKey = strings.TrimSpace(v)
+		legacyMailChanged = true
 	}
+	if legacyMailChanged {
+		providerType := strings.TrimSpace(s.cfg.MailProvider)
+		if providerType == "" || providerType == "custom" {
+			providerType = "mailtm"
+		}
+		s.cfg.Mail.Providers = []ChatGPTRegisterMailProviderConfig{{Type: providerType, Enable: true, APIBase: strings.TrimSpace(s.cfg.MailAPIBase), APIKey: strings.TrimSpace(s.cfg.MailAPIKey)}}
+	}
+	if v, ok := updates["mail"]; ok {
+		if mail, err := chatGPTRegisterDecodeMailConfig(v, s.cfg.Mail); err == nil {
+			s.cfg.Mail = mail
+		}
+	}
+	s.cfg = chatGPTRegisterNormalizeConfig(s.cfg)
 	s.saveConfig()
 	s.mu.Unlock()
 	return s.Get()
@@ -334,16 +397,22 @@ func (s *ChatGPTRegisterService) run(ctx context.Context) {
 func (s *ChatGPTRegisterService) currentConfig() ChatGPTRegisterConfig {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	return s.cfg
+	return chatGPTRegisterNormalizeConfig(s.cfg)
 }
 
 func (s *ChatGPTRegisterService) targetReached(cfg ChatGPTRegisterConfig, submitted int) bool {
+	quota, available := s.chatGPTWebAccountStats(context.Background())
+	s.mu.Lock()
+	s.cfg.Stats.CurrentQuota = quota
+	s.cfg.Stats.CurrentAvail = available
+	s.cfg.Stats.UpdatedAt = time.Now().UTC().Format(time.RFC3339)
+	s.mu.Unlock()
+
 	switch cfg.Mode {
 	case "quota":
-		// Would need to check actual quota from accounts
-		return submitted >= cfg.Total
+		return quota >= cfg.TargetQuota
 	case "available":
-		return submitted >= cfg.Total
+		return available >= cfg.TargetAvail
 	default:
 		return submitted >= cfg.Total
 	}
@@ -361,57 +430,45 @@ func (s *ChatGPTRegisterService) registerOne(ctx context.Context, cfg ChatGPTReg
 	email := mailbox.Email
 	s.appendLog(fmt.Sprintf("创建临时邮箱: %s", email), "info")
 
-	// Step 2: PKCE + authorize
 	codeVerifier, codeChallenge, state, nonce := chatGPTRegisterGeneratePKCE()
 	deviceID := chatGPTRegisterRandomUUID()
-	proxyURL := cfg.Proxy
-
-	err = s.platformAuthorize(ctx, email, deviceID, codeChallenge, state, nonce, proxyURL)
+	registrar, err := newChatGPTRegisterOpenAIClient(cfg.Proxy, deviceID)
 	if err != nil {
+		s.appendLog(fmt.Sprintf("初始化 OpenAI 注册客户端失败: %v", err), "error")
+		return false
+	}
+	defer registrar.close()
+
+	password := chatGPTRegisterRandomPassword(16)
+	firstName, lastName := chatGPTRegisterRandomName()
+	birthdate := chatGPTRegisterRandomBirthdate()
+
+	if err = registrar.platformAuthorize(ctx, email, codeChallenge, state, nonce); err != nil {
 		s.appendLog(fmt.Sprintf("platform authorize 失败: %v", err), "error")
 		return false
 	}
-
-	// Step 3: Register user with password
-	password := chatGPTRegisterRandomPassword(16)
-	err = s.registerUser(ctx, email, password, deviceID, proxyURL)
-	if err != nil {
+	if err = registrar.registerUser(ctx, email, password); err != nil {
 		s.appendLog(fmt.Sprintf("注册用户失败: %v", err), "error")
 		return false
 	}
-
-	// Step 4: Send OTP
-	err = s.sendOTP(ctx, deviceID, proxyURL)
-	if err != nil {
+	if err = registrar.sendOTP(ctx); err != nil {
 		s.appendLog(fmt.Sprintf("发送验证码失败: %v", err), "error")
 		return false
 	}
-
-	// Step 5: Wait for OTP code
 	code, err := s.waitForOTPCode(ctx, mailbox, cfg)
 	if err != nil {
 		s.appendLog(fmt.Sprintf("获取验证码失败: %v", err), "error")
 		return false
 	}
-
-	// Step 6: Validate OTP
-	err = s.validateOTP(ctx, code, deviceID, proxyURL)
-	if err != nil {
+	if err = registrar.validateOTP(ctx, code); err != nil {
 		s.appendLog(fmt.Sprintf("验证码校验失败: %v", err), "error")
 		return false
 	}
-
-	// Step 7: Create account profile
-	firstName, lastName := chatGPTRegisterRandomName()
-	birthdate := chatGPTRegisterRandomBirthdate()
-	err = s.createAccountProfile(ctx, firstName, lastName, birthdate, deviceID, proxyURL)
-	if err != nil {
+	if err = registrar.createAccountProfile(ctx, firstName+" "+lastName, birthdate); err != nil {
 		s.appendLog(fmt.Sprintf("创建账号资料失败: %v", err), "error")
 		return false
 	}
-
-	// Step 8: Exchange tokens
-	tokens, err := s.exchangeTokens(ctx, email, password, codeVerifier, deviceID, proxyURL)
+	tokens, err := registrar.loginAndExchangeTokens(ctx, email, password, codeVerifier, mailbox, cfg, s)
 	if err != nil {
 		s.appendLog(fmt.Sprintf("换 token 失败: %v", err), "error")
 		return false
@@ -427,6 +484,7 @@ func (s *ChatGPTRegisterService) registerOne(ctx context.Context, cfg ChatGPTReg
 			"refresh_token": tokens.RefreshToken,
 			"id_token":      tokens.IDToken,
 			"email":         email,
+			"password":      password,
 		},
 		Extra:       map[string]any{"openai_backend_mode": "chatgpt_web"},
 		Status:      StatusActive,
@@ -443,9 +501,18 @@ func (s *ChatGPTRegisterService) registerOne(ctx context.Context, cfg ChatGPTReg
 }
 
 type tempMailbox struct {
-	Email    string
-	Password string
-	ID       string
+	Email       string
+	Password    string
+	ID          string
+	Provider    string
+	ProviderRef string
+	Token       string
+	EmailID     string
+	AccountID   string
+	MailboxName string
+	Label       string
+	Extra       map[string]any
+	seenRefs    map[string]bool
 }
 
 type registerTokens struct {
@@ -454,263 +521,67 @@ type registerTokens struct {
 	IDToken      string
 }
 
-func chatGPTRegisterMailAPIBase(cfg ChatGPTRegisterConfig) string {
-	base := strings.TrimSpace(cfg.MailAPIBase)
-	if base == "" {
-		return "https://api.mail.tm"
-	}
-	return strings.TrimRight(base, "/")
-}
-
-func chatGPTRegisterMailRequest(ctx context.Context, cfg ChatGPTRegisterConfig, method, path string, body *strings.Reader) (*http.Request, error) {
-	if body == nil {
-		body = strings.NewReader("")
-	}
-	req, err := http.NewRequestWithContext(ctx, method, chatGPTRegisterMailAPIBase(cfg)+path, body)
-	if err != nil {
-		return nil, err
-	}
-	if strings.TrimSpace(cfg.MailAPIKey) != "" {
-		req.Header.Set("Authorization", "Bearer "+strings.TrimSpace(cfg.MailAPIKey))
-	}
-	return req, nil
-}
-
 func (s *ChatGPTRegisterService) createTempEmail(cfg ChatGPTRegisterConfig) (*tempMailbox, error) {
-	// Use mail.tm compatible API to create a temp email.
-	client := &http.Client{Timeout: 30 * time.Second}
-	domainsReq, err := chatGPTRegisterMailRequest(context.Background(), cfg, "GET", "/domains", strings.NewReader(""))
-	if err != nil {
-		return nil, fmt.Errorf("build domains request: %w", err)
-	}
-	domainsResp, err := client.Do(domainsReq)
-	if err != nil {
-		return nil, fmt.Errorf("fetch domains: %w", err)
-	}
-	defer func() { _ = domainsResp.Body.Close() }()
-	var domainsData struct {
-		HydraMember []struct {
-			Domain string `json:"domain"`
-		} `json:"hydra:member"`
-	}
-	if err := json.NewDecoder(domainsResp.Body).Decode(&domainsData); err != nil {
-		return nil, fmt.Errorf("parse domains: %w", err)
-	}
-	if len(domainsData.HydraMember) == 0 {
-		return nil, fmt.Errorf("no domains available")
-	}
-	domain := domainsData.HydraMember[0].Domain
-	localPart := fmt.Sprintf("r%x", time.Now().UnixNano()%0xFFFFFF)
-	email := localPart + "@" + domain
-	password := chatGPTRegisterRandomPassword(12)
-
-	createBody, _ := json.Marshal(map[string]string{"address": email, "password": password})
-	createReq, err := chatGPTRegisterMailRequest(context.Background(), cfg, "POST", "/accounts", strings.NewReader(string(createBody)))
-	if err != nil {
-		return nil, fmt.Errorf("build create mailbox request: %w", err)
-	}
-	createReq.Header.Set("Content-Type", "application/json")
-	createResp, err := client.Do(createReq)
-	if err != nil {
-		return nil, fmt.Errorf("create mailbox: %w", err)
-	}
-	defer func() { _ = createResp.Body.Close() }()
-	if createResp.StatusCode >= 400 {
-		return nil, fmt.Errorf("create mailbox HTTP %d", createResp.StatusCode)
-	}
-	return &tempMailbox{Email: email, Password: password}, nil
+	return chatGPTRegisterCreateMailbox(context.Background(), cfg, "")
 }
 
 func (s *ChatGPTRegisterService) platformAuthorize(ctx context.Context, email, deviceID, codeChallenge, state, nonce, proxyURL string) error {
-	params := url.Values{
-		"issuer":                {"https://auth.openai.com"},
-		"client_id":             {"app_2SKx67EdpoN0G6j64rFvigXD"},
-		"audience":              {"https://api.openai.com/v1"},
-		"redirect_uri":          {"https://platform.openai.com/auth/callback"},
-		"device_id":             {deviceID},
-		"screen_hint":           {"login_or_signup"},
-		"max_age":               {"0"},
-		"login_hint":            {email},
-		"scope":                 {"openid profile email offline_access"},
-		"response_type":         {"code"},
-		"response_mode":         {"query"},
-		"state":                 {state},
-		"nonce":                 {nonce},
-		"code_challenge":        {codeChallenge},
-		"code_challenge_method": {"S256"},
-	}
-	reqURL := "https://auth.openai.com/api/accounts/authorize?" + params.Encode()
-	req, _ := http.NewRequestWithContext(ctx, "GET", reqURL, nil)
-	req.Header.Set("User-Agent", chatGPTWebDefaultUserAgent)
-	resp, err := http.DefaultClient.Do(req)
+	client, err := newChatGPTRegisterOpenAIClient(proxyURL, deviceID)
 	if err != nil {
 		return err
 	}
-	defer func() { _ = resp.Body.Close() }()
-	if resp.StatusCode >= 400 {
-		return fmt.Errorf("authorize HTTP %d", resp.StatusCode)
-	}
-	return nil
+	defer client.close()
+	return client.platformAuthorize(ctx, email, codeChallenge, state, nonce)
 }
 
 func (s *ChatGPTRegisterService) registerUser(ctx context.Context, email, password, deviceID, proxyURL string) error {
-	body, _ := json.Marshal(map[string]string{"username": email, "password": password})
-	req, _ := http.NewRequestWithContext(ctx, "POST", "https://auth.openai.com/api/accounts/user/register", strings.NewReader(string(body)))
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("User-Agent", chatGPTWebDefaultUserAgent)
-	req.Header.Set("Oai-Device-Id", deviceID)
-	resp, err := http.DefaultClient.Do(req)
+	client, err := newChatGPTRegisterOpenAIClient(proxyURL, deviceID)
 	if err != nil {
 		return err
 	}
-	defer func() { _ = resp.Body.Close() }()
-	if resp.StatusCode >= 400 {
-		return fmt.Errorf("register HTTP %d", resp.StatusCode)
-	}
-	return nil
+	defer client.close()
+	return client.registerUser(ctx, email, password)
 }
 
 func (s *ChatGPTRegisterService) sendOTP(ctx context.Context, deviceID, proxyURL string) error {
-	req, _ := http.NewRequestWithContext(ctx, "GET", "https://auth.openai.com/api/accounts/email-otp/send", nil)
-	req.Header.Set("User-Agent", chatGPTWebDefaultUserAgent)
-	resp, err := http.DefaultClient.Do(req)
+	client, err := newChatGPTRegisterOpenAIClient(proxyURL, deviceID)
 	if err != nil {
 		return err
 	}
-	defer func() { _ = resp.Body.Close() }()
-	if resp.StatusCode >= 400 {
-		return fmt.Errorf("send OTP HTTP %d", resp.StatusCode)
-	}
-	return nil
+	defer client.close()
+	return client.sendOTP(ctx)
 }
 
 func (s *ChatGPTRegisterService) waitForOTPCode(ctx context.Context, mailbox *tempMailbox, cfg ChatGPTRegisterConfig) (string, error) {
-	client := &http.Client{Timeout: 10 * time.Second}
-	tokenReq, err := chatGPTRegisterMailRequest(ctx, cfg, "POST", "/token",
-		strings.NewReader(fmt.Sprintf(`{"address":"%s","password":"%s"}`, mailbox.Email, mailbox.Password)))
-	if err != nil {
-		return "", fmt.Errorf("build mail token request: %w", err)
-	}
-	tokenReq.Header.Set("Content-Type", "application/json")
-	tokenResp, err := client.Do(tokenReq)
-	if err != nil {
-		return "", fmt.Errorf("get mail token: %w", err)
-	}
-	defer func() { _ = tokenResp.Body.Close() }()
-	var tokenData struct {
-		Token string `json:"token"`
-	}
-	if err := json.NewDecoder(tokenResp.Body).Decode(&tokenData); err != nil {
-		return "", fmt.Errorf("parse mail token: %w", err)
-	}
-	if tokenData.Token == "" {
-		return "", fmt.Errorf("empty mail token")
-	}
-
-	deadline := time.After(120 * time.Second)
-	ticker := time.NewTicker(3 * time.Second)
-	defer ticker.Stop()
-	for {
-		select {
-		case <-deadline:
-			return "", fmt.Errorf("OTP wait timeout")
-		case <-ctx.Done():
-			return "", ctx.Err()
-		case <-ticker.C:
-			msgReq, _ := chatGPTRegisterMailRequest(ctx, cfg, "GET", "/messages", strings.NewReader(""))
-			msgReq.Header.Set("Authorization", "Bearer "+tokenData.Token)
-			msgResp, err := client.Do(msgReq)
-			if err != nil {
-				continue
-			}
-			var msgData struct {
-				HydraMember []struct {
-					Subject string `json:"subject"`
-					Text    string `json:"text"`
-				} `json:"hydra:member"`
-			}
-			_ = json.NewDecoder(msgResp.Body).Decode(&msgData)
-			_ = msgResp.Body.Close()
-			for _, msg := range msgData.HydraMember {
-				if strings.Contains(msg.Subject, "OpenAI") || strings.Contains(msg.Text, "verification code") {
-					code := chatGPTRegisterExtractOTP(msg.Text)
-					if code != "" {
-						return code, nil
-					}
-				}
-			}
-		}
-	}
+	return chatGPTRegisterWaitForCode(ctx, cfg, mailbox)
 }
 
 func (s *ChatGPTRegisterService) validateOTP(ctx context.Context, code, deviceID, proxyURL string) error {
-	body, _ := json.Marshal(map[string]string{"code": code})
-	req, _ := http.NewRequestWithContext(ctx, "POST", "https://auth.openai.com/api/accounts/email-otp/validate", strings.NewReader(string(body)))
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("User-Agent", chatGPTWebDefaultUserAgent)
-	req.Header.Set("Oai-Device-Id", deviceID)
-	resp, err := http.DefaultClient.Do(req)
+	client, err := newChatGPTRegisterOpenAIClient(proxyURL, deviceID)
 	if err != nil {
 		return err
 	}
-	defer func() { _ = resp.Body.Close() }()
-	if resp.StatusCode >= 400 {
-		return fmt.Errorf("validate OTP HTTP %d", resp.StatusCode)
-	}
-	return nil
+	defer client.close()
+	return client.validateOTP(ctx, code)
 }
 
 func (s *ChatGPTRegisterService) createAccountProfile(ctx context.Context, firstName, lastName, birthdate, deviceID, proxyURL string) error {
-	body, _ := json.Marshal(map[string]string{
-		"name":      firstName + " " + lastName,
-		"birthdate": birthdate,
-	})
-	req, _ := http.NewRequestWithContext(ctx, "POST", "https://auth.openai.com/api/accounts/create_account", strings.NewReader(string(body)))
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("User-Agent", chatGPTWebDefaultUserAgent)
-	req.Header.Set("Oai-Device-Id", deviceID)
-	resp, err := http.DefaultClient.Do(req)
+	client, err := newChatGPTRegisterOpenAIClient(proxyURL, deviceID)
 	if err != nil {
 		return err
 	}
-	defer func() { _ = resp.Body.Close() }()
-	if resp.StatusCode >= 400 {
-		return fmt.Errorf("create account HTTP %d", resp.StatusCode)
-	}
-	return nil
+	defer client.close()
+	name := strings.TrimSpace(firstName + " " + lastName)
+	return client.createAccountProfile(ctx, name, birthdate)
 }
 
 func (s *ChatGPTRegisterService) exchangeTokens(ctx context.Context, email, password, codeVerifier, deviceID, proxyURL string) (*registerTokens, error) {
-	// Exchange authorization code for tokens
-	body := url.Values{
-		"grant_type":    {"authorization_code"},
-		"redirect_uri":  {"https://platform.openai.com/auth/callback"},
-		"client_id":     {"app_2SKx67EdpoN0G6j64rFvigXD"},
-		"code_verifier": {codeVerifier},
-	}
-	req, _ := http.NewRequestWithContext(ctx, "POST", "https://auth.openai.com/oauth/token", strings.NewReader(body.Encode()))
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	resp, err := http.DefaultClient.Do(req)
+	client, err := newChatGPTRegisterOpenAIClient(proxyURL, deviceID)
 	if err != nil {
 		return nil, err
 	}
-	defer func() { _ = resp.Body.Close() }()
-	var data struct {
-		AccessToken  string `json:"access_token"`
-		RefreshToken string `json:"refresh_token"`
-		IDToken      string `json:"id_token"`
-	}
-	if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
-		return nil, err
-	}
-	if data.AccessToken == "" || data.RefreshToken == "" {
-		return nil, fmt.Errorf("token exchange failed: empty tokens")
-	}
-	return &registerTokens{
-		AccessToken:  data.AccessToken,
-		RefreshToken: data.RefreshToken,
-		IDToken:      data.IDToken,
-	}, nil
+	defer client.close()
+	return client.loginAndExchangeTokens(ctx, email, password, codeVerifier, &tempMailbox{Email: email}, ChatGPTRegisterConfig{Proxy: proxyURL, Mail: defaultRegisterConfig().Mail}, s)
 }
 
 // Helpers
@@ -769,20 +640,7 @@ func chatGPTRegisterRandomUUID() string {
 }
 
 func chatGPTRegisterExtractOTP(text string) string {
-	// Extract 6-digit code from email text
-	for i := 0; i <= len(text)-6; i++ {
-		if text[i] >= '0' && text[i] <= '9' {
-			end := i + 1
-			for end < len(text) && text[end] >= '0' && text[end] <= '9' {
-				end++
-			}
-			if end-i == 6 {
-				return text[i:end]
-			}
-			i = end - 1
-		}
-	}
-	return ""
+	return chatGPTRegisterExtractCode(text)
 }
 
 // Ensure unused imports don't cause compile error

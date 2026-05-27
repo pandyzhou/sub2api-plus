@@ -18,11 +18,16 @@ export {
   deleteAccounts,
   refreshAccounts,
   updateAccount,
+  fetchAccountPoolConfig,
+  updateAccountPoolConfig,
   exportAccounts,
 } from './accounts'
 
 export type {
   ChatGPTAccount,
+  ChatGPTAccountPoolConfig,
+  ChatGPTAccountExportFormat,
+  ChatGPTAccountExportResponse,
   ChatGPTAccountListResponse,
   ChatGPTAccountMutationResponse,
 } from './client'
@@ -34,11 +39,15 @@ export {
   startRegister,
   stopRegister,
   resetRegister,
+  createRegisterEventsToken,
   createRegisterEventSource,
 } from './register'
 
 export type {
   RegisterConfig,
+  RegisterMailConfig,
+  RegisterMailProvider,
+  RegisterMailProviderType,
   RegisterMode,
   RegisterUpdatePayload,
 } from './register'

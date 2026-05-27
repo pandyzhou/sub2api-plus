@@ -12,6 +12,46 @@ const BASE = '/admin/chatgpt'
 
 export type RegisterMode = 'total' | 'quota' | 'available'
 
+export type RegisterMailProviderType =
+  | 'mailtm'
+  | 'custom'
+  | 'cloudflare_temp_email'
+  | 'tempmail_lol'
+  | 'inbucket'
+  | 'moemail'
+  | 'cloudmail_gen'
+  | 'ddg_mail'
+  | 'duckmail'
+  | 'gptmail'
+  | 'yyds_mail'
+
+export type RegisterMailProvider = {
+  type: RegisterMailProviderType | string
+  enable: boolean
+  provider_ref?: string
+  label?: string
+  api_base?: string
+  api_key?: string
+  admin_email?: string
+  admin_password?: string
+  ddg_token?: string
+  cf_inbox_jwt?: string
+  cf_auth_mode?: string
+  domain?: string[]
+  subdomain?: string[]
+  default_domain?: string
+  wildcard?: boolean
+  random_subdomain?: boolean
+  email_prefix?: string
+}
+
+export type RegisterMailConfig = {
+  request_timeout: number
+  wait_timeout: number
+  wait_interval: number
+  providers: RegisterMailProvider[]
+}
+
 export type RegisterUpdatePayload = Partial<{
   proxy: string
   total: number
@@ -20,6 +60,8 @@ export type RegisterUpdatePayload = Partial<{
   target_quota: number
   target_available: number
   check_interval: number
+  mail: RegisterMailConfig
+  // Legacy fields for backward compatibility with older backend responses.
   mail_provider: string
   mail_api_base: string
   mail_api_key: string
@@ -34,6 +76,7 @@ export type RegisterConfig = {
   target_quota: number
   target_available: number
   check_interval: number
+  mail?: RegisterMailConfig
   mail_provider?: string
   mail_api_base?: string
   mail_api_key?: string
@@ -43,12 +86,23 @@ export type RegisterConfig = {
     done: number
     running: number
     threads?: number
+    elapsed_seconds?: number
+    avg_seconds?: number
+    success_rate?: number
+    current_quota?: number
+    current_available?: number
   }
   logs?: Array<{
     time: string
     text: string
     level: string
   }>
+}
+
+export type RegisterEventTokenResponse = {
+  token: string
+  expires_at?: string
+  ttl_seconds?: number
 }
 
 // ==================== API Methods ====================
@@ -96,11 +150,17 @@ export async function resetRegister(): Promise<{ register: RegisterConfig }> {
 }
 
 /**
- * Create an EventSource for real-time registration machine events
- * @returns EventSource instance
+ * Create a short-lived token for EventSource registration status stream.
  */
-export function createRegisterEventSource(): EventSource {
-  // Native register events are optional; EventSource uses the absolute API path.
-  const url = `/api/v1${BASE}/register/events`
+export async function createRegisterEventsToken(): Promise<RegisterEventTokenResponse> {
+  const { data } = await apiClient.post(`${BASE}/register/events-token`)
+  return data?.data || data
+}
+
+/**
+ * Create an EventSource for real-time registration machine events.
+ */
+export function createRegisterEventSource(token: string): EventSource {
+  const url = `/api/v1${BASE}/register/events?token=${encodeURIComponent(token)}`
   return new EventSource(url)
 }

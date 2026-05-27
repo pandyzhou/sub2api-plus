@@ -49,6 +49,36 @@
         </div>
       </section>
 
+      <section class="card">
+        <div class="card-header flex items-start justify-between gap-4">
+          <div>
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-white">账号池设置</h2>
+            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">配置自动刷新、自动移除和图片账号并发。</p>
+          </div>
+          <button @click="store.savePoolConfig()" :disabled="store.configSaving" class="btn btn-secondary btn-sm">
+            {{ store.configSaving ? t('common.saving') : t('common.save') }}
+          </button>
+        </div>
+        <div class="card-body grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <div>
+            <label class="input-label">刷新间隔（分钟）</label>
+            <input v-model.number="store.poolConfig.refresh_account_interval_minute" type="number" min="1" class="input" />
+          </div>
+          <div>
+            <label class="input-label">图片账号并发</label>
+            <input v-model.number="store.poolConfig.image_account_concurrency" type="number" min="1" class="input" />
+          </div>
+          <label class="flex items-center gap-2 rounded-xl border border-gray-200 px-3 py-2 text-sm text-gray-600 dark:border-dark-700 dark:text-gray-300">
+            <input v-model="store.poolConfig.auto_remove_invalid_accounts" type="checkbox" class="rounded border-gray-300 text-primary-600 focus:ring-primary-500 dark:border-dark-600 dark:bg-dark-900" />
+            自动移除无效账号
+          </label>
+          <label class="flex items-center gap-2 rounded-xl border border-gray-200 px-3 py-2 text-sm text-gray-600 dark:border-dark-700 dark:text-gray-300">
+            <input v-model="store.poolConfig.auto_remove_rate_limited_accounts" type="checkbox" class="rounded border-gray-300 text-primary-600 focus:ring-primary-500 dark:border-dark-600 dark:bg-dark-900" />
+            自动移除限流账号
+          </label>
+        </div>
+      </section>
+
       <section class="card p-4">
         <div class="flex flex-col gap-4 xl:flex-row xl:items-center">
           <div class="grid flex-1 gap-3 sm:grid-cols-[minmax(0,1fr)_12rem]">
@@ -58,13 +88,19 @@
               :placeholder="t('chatgpt.accounts.search')"
               class="input"
             />
-            <select v-model="store.filterStatus" class="input">
-              <option value="全部">{{ t('chatgpt.accounts.allStatus') }}</option>
-              <option value="正常">{{ t('chatgpt.accounts.statusNormal') }}</option>
-              <option value="限流">{{ t('chatgpt.accounts.statusLimited') }}</option>
-              <option value="异常">{{ t('chatgpt.accounts.statusError') }}</option>
-              <option value="禁用">{{ t('chatgpt.accounts.statusDisabled') }}</option>
-            </select>
+            <div class="grid gap-3 sm:grid-cols-2">
+              <select v-model="store.filterStatus" class="input">
+                <option value="全部">{{ t('chatgpt.accounts.allStatus') }}</option>
+                <option value="正常">{{ t('chatgpt.accounts.statusNormal') }}</option>
+                <option value="限流">{{ t('chatgpt.accounts.statusLimited') }}</option>
+                <option value="异常">{{ t('chatgpt.accounts.statusError') }}</option>
+                <option value="禁用">{{ t('chatgpt.accounts.statusDisabled') }}</option>
+              </select>
+              <select v-model="store.filterType" class="input">
+                <option value="全部">全部类型</option>
+                <option v-for="type in store.typeOptions" :key="type" :value="type">{{ type }}</option>
+              </select>
+            </div>
           </div>
 
           <div v-if="store.selectedCount > 0" class="flex flex-wrap items-center gap-2">
@@ -109,11 +145,12 @@
                   />
                 </th>
                 <th class="table-th">{{ t('chatgpt.accounts.colStatus') }}</th>
-                <th class="table-th">{{ t('chatgpt.accounts.colType') }}</th>
-                <th class="table-th">{{ t('chatgpt.accounts.colEmail') }}</th>
-                <th class="table-th">{{ t('chatgpt.accounts.colQuota') }}</th>
-                <th class="table-th">{{ t('chatgpt.accounts.colSuccess') }}</th>
-                <th class="table-th">{{ t('chatgpt.accounts.colLastUsed') }}</th>
+                <th class="table-th">类型/计划</th>
+                <th class="table-th">账号</th>
+                <th class="table-th">额度</th>
+                <th class="table-th">成功/失败</th>
+                <th class="table-th">错误原因</th>
+                <th class="table-th">最后刷新</th>
                 <th class="table-th">{{ t('chatgpt.accounts.colActions') }}</th>
               </tr>
             </thead>
@@ -137,22 +174,39 @@
                   </span>
                 </td>
                 <td class="table-td">
-                  <span class="rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-600 dark:bg-dark-700 dark:text-gray-300">
-                    {{ acc.type || '-' }}
-                  </span>
+                  <div class="flex flex-col gap-1">
+                    <span class="w-fit rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-600 dark:bg-dark-700 dark:text-gray-300">
+                      {{ acc.type || '-' }}
+                    </span>
+                    <span v-if="acc.plan_type && acc.plan_type !== acc.type" class="max-w-[8rem] truncate text-xs text-gray-400 dark:text-dark-400">{{ acc.plan_type }}</span>
+                    <span v-if="acc.export_type" class="text-xs text-gray-400 dark:text-dark-400">{{ acc.export_type }}</span>
+                  </div>
                 </td>
                 <td class="table-td">
-                  <div class="font-medium text-gray-900 dark:text-white">{{ acc.email || '-' }}</div>
-                  <div class="mt-1 max-w-[16rem] truncate font-mono text-xs text-gray-400 dark:text-dark-400">{{ acc.access_token }}</div>
-                </td>
-                <td class="table-td font-semibold tabular-nums">
-                  {{ acc.image_quota_unknown ? '?' : (acc.quota ?? 0) }}
+                  <div class="max-w-[14rem] truncate font-medium text-gray-900 dark:text-white" :title="acc.email || acc.user_id || '-'">{{ acc.email || acc.user_id || '-' }}</div>
+                  <div class="mt-1 max-w-[14rem] truncate font-mono text-xs text-gray-400 dark:text-dark-400" :title="acc.access_token">{{ acc.access_token }}</div>
+                  <div v-if="acc.account_id" class="mt-1 max-w-[14rem] truncate font-mono text-xs text-gray-400 dark:text-dark-400" :title="acc.account_id">{{ acc.account_id }}</div>
                 </td>
                 <td class="table-td">
-                  <span class="font-semibold tabular-nums">{{ acc.success ?? 0 }}</span>
-                  <span class="text-gray-400 dark:text-dark-400">/{{ (acc.success ?? 0) + (acc.fail ?? 0) }}</span>
+                  <div class="font-semibold tabular-nums">{{ acc.image_quota_unknown ? '?' : (acc.quota ?? 0) }}</div>
+                  <div v-if="acc.default_model_slug" class="mt-1 max-w-[8rem] truncate text-xs text-gray-400 dark:text-dark-400" :title="acc.default_model_slug">{{ acc.default_model_slug }}</div>
+                  <div v-if="acc.restore_at" class="mt-1 text-xs text-gray-400 dark:text-dark-400">恢复 {{ formatDateTime(acc.restore_at) }}</div>
                 </td>
-                <td class="table-td text-gray-500 dark:text-gray-400">{{ formatDate(acc.last_used_at) }}</td>
+                <td class="table-td">
+                  <span class="font-semibold tabular-nums text-emerald-600 dark:text-emerald-400">{{ acc.success ?? 0 }}</span>
+                  <span class="mx-1 text-gray-400 dark:text-dark-400">/</span>
+                  <span class="font-semibold tabular-nums text-red-600 dark:text-red-400">{{ acc.fail ?? 0 }}</span>
+                  <div v-if="acc.invalid_count" class="mt-1 text-xs text-gray-400 dark:text-dark-400">无效 {{ acc.invalid_count }}</div>
+                </td>
+                <td class="table-td">
+                  <div class="max-w-[16rem] truncate text-red-600 dark:text-red-300" :title="acc.last_refresh_error || ''">{{ acc.last_refresh_error || '-' }}</div>
+                  <div v-if="acc.last_token_refresh_error" class="mt-1 max-w-[16rem] truncate text-xs text-amber-600 dark:text-amber-300" :title="acc.last_token_refresh_error">Token: {{ acc.last_token_refresh_error }}</div>
+                </td>
+                <td class="table-td text-gray-500 dark:text-gray-400">
+                  <div>{{ formatDateTime(acc.last_refresh || acc.updated_at || acc.last_used_at) }}</div>
+                  <div v-if="acc.last_token_refresh_at" class="mt-1 text-xs">Token {{ formatDateTime(acc.last_token_refresh_at) }}</div>
+                  <div v-if="acc.last_token_refresh_error_at" class="mt-1 text-xs text-amber-600 dark:text-amber-300">Token 错误 {{ formatDateTime(acc.last_token_refresh_error_at) }}</div>
+                </td>
                 <td class="table-td">
                   <button @click="store.openEdit(acc)" class="btn btn-secondary btn-sm">
                     {{ t('common.edit') }}
@@ -223,6 +277,10 @@
               <label class="input-label">{{ t('chatgpt.accounts.colQuota') }}</label>
               <input v-model.number="store.editQuota" type="number" class="input" />
             </div>
+            <label class="inline-flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
+              <input v-model="store.editImageQuotaUnknown" type="checkbox" class="rounded border-gray-300 text-primary-600 focus:ring-primary-500 dark:border-dark-600 dark:bg-dark-900" />
+              图片额度未知
+            </label>
           </div>
           <div class="mt-6 flex justify-end gap-2">
             <button @click="store.closeEdit()" class="btn btn-secondary">{{ t('common.cancel') }}</button>
@@ -289,6 +347,7 @@ const statCards = computed(() => [
 
 onMounted(() => {
   store.load()
+  store.loadPoolConfig()
 })
 
 function toggleSelectAll(): void {
@@ -314,11 +373,8 @@ async function handleImport(): Promise<void> {
 
   try {
     const parsed = JSON.parse(text)
-    if (Array.isArray(parsed)) {
-      await store.importAccounts([], parsed)
-    } else {
-      await store.importAccounts([], [parsed])
-    }
+    const payloads = normalizeImportPayload(parsed)
+    await store.importAccounts([], payloads)
   } catch {
     const tokens = text.split('\n').map((l) => l.trim()).filter(Boolean)
     await store.importAccounts(tokens, [])
@@ -326,6 +382,24 @@ async function handleImport(): Promise<void> {
 
   importText.value = ''
   showImportDialog.value = false
+}
+
+function normalizeImportPayload(input: unknown): Record<string, unknown>[] {
+  if (Array.isArray(input)) return input.filter(isRecord)
+  if (!isRecord(input)) return []
+
+  const record = input as Record<string, unknown>
+  for (const key of ['accounts', 'items', 'data']) {
+    const value = record[key]
+    if (Array.isArray(value)) return value.filter(isRecord)
+  }
+
+  if (isRecord(record.account)) return [record.account]
+  return [record]
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
 function statusBadgeClass(status: string): string {
@@ -338,10 +412,12 @@ function statusBadgeClass(status: string): string {
   }
 }
 
-function formatDate(dateStr?: string | null): string {
+function formatDateTime(dateStr?: string | null): string {
   if (!dateStr) return '-'
   try {
-    return new Date(dateStr).toLocaleDateString()
+    const date = new Date(dateStr)
+    if (Number.isNaN(date.getTime())) return dateStr
+    return date.toLocaleString()
   } catch {
     return dateStr
   }
@@ -353,6 +429,6 @@ function formatDate(dateStr?: string | null): string {
   @apply px-5 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-dark-400;
 }
 .table-td {
-  @apply whitespace-nowrap px-5 py-4 text-sm text-gray-700 dark:text-gray-300;
+  @apply px-5 py-4 align-top text-sm text-gray-700 dark:text-gray-300;
 }
 </style>

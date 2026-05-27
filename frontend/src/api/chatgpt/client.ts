@@ -9,23 +9,49 @@ import { apiClient } from '../client'
 
 const BASE = '/admin/chatgpt'
 
+export type ChatGPTLimitProgress = Record<string, unknown>
+
 export type ChatGPTAccount = {
   access_token: string
+  refresh_token?: string
+  id_token?: string
+  password?: string
+  export_type?: string
   type: string
+  account_type?: string
   status: string
   name?: string
   email?: string
   user_id?: string
   plan_type?: string
   chatgpt_account_id?: string
+  account_id?: string
   created_at?: string
-  // Legacy fields for backward compatibility
+  updated_at?: string
+  last_used_at?: string | null
   quota?: number
   image_quota_unknown?: boolean
-  account_id?: string
+  limits_progress?: ChatGPTLimitProgress[] | ChatGPTLimitProgress | unknown[]
+  default_model_slug?: string | null
+  restore_at?: string | null
   success?: number
   fail?: number
-  last_used_at?: string | null
+  invalid_count?: number
+  last_invalid_at?: string | null
+  last_refresh_error?: string | null
+  last_refresh_error_at?: string | null
+  last_token_refresh_at?: string | null
+  last_token_refresh_error?: string | null
+  last_token_refresh_error_at?: string | null
+  expired?: string | boolean | null
+  last_refresh?: string | null
+}
+
+export type ChatGPTAccountPoolConfig = {
+  refresh_account_interval_minute: number
+  auto_remove_invalid_accounts: boolean
+  auto_remove_rate_limited_accounts: boolean
+  image_account_concurrency: number
 }
 
 export type ChatGPTAccountListResponse = {
@@ -39,6 +65,13 @@ export type ChatGPTAccountMutationResponse = {
   removed?: number
   refreshed?: number
   errors?: Array<{ token: string; error: string }>
+}
+
+export type ChatGPTAccountExportFormat = 'json' | 'zip'
+
+export type ChatGPTAccountExportResponse = {
+  blob: Blob
+  filename: string
 }
 
 /**
@@ -84,26 +117,62 @@ export async function refreshAccounts(tokens: string[]): Promise<ChatGPTAccountM
 }
 
 /**
- * Update account (status etc.)
+ * Update account (status/type/quota/image_quota_unknown)
  */
 export async function updateAccount(
   accessToken: string,
   updates: Record<string, unknown>,
-): Promise<void> {
-  await apiClient.post(`${BASE}/accounts/update`, {
+): Promise<ChatGPTAccountMutationResponse | void> {
+  const { data } = await apiClient.post(`${BASE}/accounts/update`, {
     access_token: accessToken,
     ...updates,
   })
+  return data?.data || data
 }
 
 /**
- * Export accounts
+ * Fetch account pool configuration.
  */
-export async function exportAccounts(tokens: string[]): Promise<ChatGPTAccountListResponse> {
-  const { data } = await apiClient.post(`${BASE}/accounts/export`, {
-    access_tokens: tokens,
-  })
+export async function fetchAccountPoolConfig(): Promise<ChatGPTAccountPoolConfig> {
+  const { data } = await apiClient.get(`${BASE}/account-pool/config`)
   return data?.data || data
+}
+
+/**
+ * Update account pool configuration.
+ */
+export async function updateAccountPoolConfig(
+  updates: Partial<ChatGPTAccountPoolConfig>,
+): Promise<ChatGPTAccountPoolConfig> {
+  const { data } = await apiClient.post(`${BASE}/account-pool/config`, updates)
+  return data?.data || data
+}
+
+function filenameFromDisposition(disposition?: string): string | null {
+  if (!disposition) return null
+  const utf8 = disposition.match(/filename\*=UTF-8''([^;]+)/i)
+  if (utf8?.[1]) return decodeURIComponent(utf8[1].replace(/"/g, ''))
+  const plain = disposition.match(/filename="?([^";]+)"?/i)
+  return plain?.[1] || null
+}
+
+/**
+ * Export accounts as backend-generated JSON or ZIP blob.
+ */
+export async function exportAccounts(
+  tokens: string[],
+  format: ChatGPTAccountExportFormat = 'json',
+): Promise<ChatGPTAccountExportResponse> {
+  const response = await apiClient.post(
+    `${BASE}/accounts/export`,
+    { access_tokens: tokens, format },
+    { responseType: 'blob' },
+  )
+  const fallback = `chatgpt-accounts.${format}`
+  return {
+    blob: response.data,
+    filename: filenameFromDisposition(response.headers?.['content-disposition']) || fallback,
+  }
 }
 
 /**

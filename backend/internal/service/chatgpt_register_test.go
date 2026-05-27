@@ -90,6 +90,9 @@ func TestChatGPTRegisterService_ReturnsAndPersistsMailConfig(t *testing.T) {
 	if stored.MailProvider != "mailtm" || stored.MailAPIBase != "https://mail.example.test" || stored.MailAPIKey != "secret-key" {
 		t.Fatalf("stored mail config mismatch: %#v", stored)
 	}
+	if len(stored.Mail.Providers) != 1 || stored.Mail.Providers[0].Type != "mailtm" || stored.Mail.Providers[0].APIBase != "https://mail.example.test" || stored.Mail.Providers[0].APIKey != "secret-key" {
+		t.Fatalf("stored migrated providers mismatch: %#v", stored.Mail.Providers)
+	}
 }
 
 func TestChatGPTRegisterService_CreateTempEmailUsesConfiguredMailAPIBase(t *testing.T) {

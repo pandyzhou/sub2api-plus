@@ -14,6 +14,9 @@ func RegisterAdminRoutes(
 	h *handler.Handlers,
 	adminAuth middleware.AdminAuthMiddleware,
 ) {
+	// EventSource 无法携带 Authorization，注册机 SSE 使用短期 query token 单独校验。
+	v1.GET("/admin/chatgpt/register/events", h.Admin.ChatGPTAccount.RegisterEvents)
+
 	admin := v1.Group("/admin")
 	admin.Use(gin.HandlerFunc(adminAuth))
 	{
@@ -660,10 +663,13 @@ func registerChatGPTRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 		chatgpt.POST("/accounts/refresh", h.Admin.ChatGPTAccount.RefreshAccounts)
 		chatgpt.POST("/accounts/update", h.Admin.ChatGPTAccount.UpdateAccount)
 		chatgpt.POST("/accounts/export", h.Admin.ChatGPTAccount.ExportAccounts)
+		chatgpt.GET("/account-pool/config", h.Admin.ChatGPTAccount.AccountPoolConfig)
+		chatgpt.POST("/account-pool/config", h.Admin.ChatGPTAccount.UpdateAccountPoolConfig)
 		chatgpt.GET("/register", h.Admin.ChatGPTAccount.RegisterConfig)
 		chatgpt.POST("/register", h.Admin.ChatGPTAccount.UpdateRegisterConfig)
 		chatgpt.POST("/register/start", h.Admin.ChatGPTAccount.StartRegister)
 		chatgpt.POST("/register/stop", h.Admin.ChatGPTAccount.StopRegister)
 		chatgpt.POST("/register/reset", h.Admin.ChatGPTAccount.ResetRegister)
+		chatgpt.POST("/register/events-token", h.Admin.ChatGPTAccount.CreateRegisterEventsToken)
 	}
 }
