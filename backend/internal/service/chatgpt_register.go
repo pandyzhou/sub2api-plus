@@ -458,7 +458,7 @@ func (s *ChatGPTRegisterService) createTempEmail(cfg ChatGPTRegisterConfig) (*te
 	if err != nil {
 		return nil, fmt.Errorf("fetch domains: %w", err)
 	}
-	defer domainsResp.Body.Close()
+	defer func() { _ = domainsResp.Body.Close() }()
 	var domainsData struct {
 		HydraMember []struct {
 			Domain string `json:"domain"`
@@ -480,7 +480,7 @@ func (s *ChatGPTRegisterService) createTempEmail(cfg ChatGPTRegisterConfig) (*te
 	if err != nil {
 		return nil, fmt.Errorf("create mailbox: %w", err)
 	}
-	defer createResp.Body.Close()
+	defer func() { _ = createResp.Body.Close() }()
 	if createResp.StatusCode >= 400 {
 		return nil, fmt.Errorf("create mailbox HTTP %d", createResp.StatusCode)
 	}
@@ -557,7 +557,7 @@ func (s *ChatGPTRegisterService) waitForOTPCode(ctx context.Context, mailbox *te
 	if err != nil {
 		return "", fmt.Errorf("get mail token: %w", err)
 	}
-	defer tokenResp.Body.Close()
+	defer func() { _ = tokenResp.Body.Close() }()
 	var tokenData struct {
 		Token string `json:"token"`
 	}
@@ -590,8 +590,8 @@ func (s *ChatGPTRegisterService) waitForOTPCode(ctx context.Context, mailbox *te
 					Text    string `json:"text"`
 				} `json:"hydra:member"`
 			}
-			json.NewDecoder(msgResp.Body).Decode(&msgData)
-			msgResp.Body.Close()
+			_ = json.NewDecoder(msgResp.Body).Decode(&msgData)
+			_ = msgResp.Body.Close()
 			for _, msg := range msgData.HydraMember {
 				if strings.Contains(msg.Subject, "OpenAI") || strings.Contains(msg.Text, "verification code") {
 					code := chatGPTRegisterExtractOTP(msg.Text)
@@ -701,14 +701,14 @@ func chatGPTRegisterRandomName() (string, string) {
 	first := []string{"James", "Robert", "John", "Michael", "David", "Emma", "Olivia", "Sophia"}
 	last := []string{"Smith", "Johnson", "Williams", "Brown", "Jones", "Garcia", "Miller"}
 	var a, b [1]byte
-	rand.Read(a[:])
-	rand.Read(b[:])
+	_, _ = rand.Read(a[:])
+	_, _ = rand.Read(b[:])
 	return first[int(a[0])%len(first)], last[int(b[0])%len(last)]
 }
 
 func chatGPTRegisterRandomBirthdate() string {
 	var b [3]byte
-	rand.Read(b[:])
+	_, _ = rand.Read(b[:])
 	year := 1996 + int(b[0])%11
 	month := 1 + int(b[1])%12
 	day := 1 + int(b[2])%28
