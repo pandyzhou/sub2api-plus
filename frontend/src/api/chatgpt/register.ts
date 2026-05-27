@@ -36,13 +36,19 @@ export type RegisterMailProvider = {
   admin_password?: string
   ddg_token?: string
   cf_inbox_jwt?: string
+  cf_api_base?: string
+  cf_api_key?: string
   cf_auth_mode?: string
+  cf_create_path?: string
+  cf_messages_path?: string
+  cf_domain?: string[]
   domain?: string[]
   subdomain?: string[]
   default_domain?: string
   wildcard?: boolean
   random_subdomain?: boolean
   email_prefix?: string
+  expiry_time?: number
 }
 
 export type RegisterMailConfig = {

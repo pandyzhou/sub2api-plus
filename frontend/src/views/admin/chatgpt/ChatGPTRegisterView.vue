@@ -200,42 +200,56 @@
                       <input v-model="provider.ddg_token" type="password" autocomplete="new-password" class="input font-mono text-sm" />
                     </div>
                     <div v-if="showField(provider.type, 'cf_inbox_jwt')">
-                      <label class="input-label">CF Inbox JWT</label>
+                      <label class="input-label">CF 收件箱 JWT</label>
                       <input v-model="provider.cf_inbox_jwt" type="password" autocomplete="new-password" class="input font-mono text-sm" />
                     </div>
+                    <div v-if="showField(provider.type, 'cf_api_base')">
+                      <label class="input-label">CF API Base</label>
+                      <input v-model="provider.cf_api_base" type="url" class="input font-mono text-sm" />
+                    </div>
+                    <div v-if="showField(provider.type, 'cf_api_key')">
+                      <label class="input-label">CF API Key</label>
+                      <input v-model="provider.cf_api_key" type="password" autocomplete="new-password" class="input font-mono text-sm" />
+                    </div>
                     <div v-if="showField(provider.type, 'cf_auth_mode')">
-                      <label class="input-label">CF Auth Mode</label>
+                      <label class="input-label">CF 认证模式</label>
                       <select v-model="provider.cf_auth_mode" class="input">
                         <option value="">默认</option>
                         <option value="jwt">jwt</option>
                         <option value="apikey">apikey</option>
+                        <option value="x-api-key">x-api-key</option>
+                        <option value="query-key">query-key</option>
                         <option value="none">none</option>
                       </select>
                     </div>
+                    <div v-if="showField(provider.type, 'cf_messages_path')">
+                      <label class="input-label">CF 消息路径</label>
+                      <input v-model="provider.cf_messages_path" type="text" placeholder="/api/mails" class="input font-mono text-sm" />
+                    </div>
                     <div v-if="showField(provider.type, 'email_prefix')">
-                      <label class="input-label">Email Prefix</label>
+                      <label class="input-label">邮箱前缀</label>
                       <input v-model="provider.email_prefix" type="text" class="input font-mono text-sm" />
                     </div>
                     <div v-if="showField(provider.type, 'default_domain')">
-                      <label class="input-label">Default Domain</label>
+                      <label class="input-label">默认域名</label>
                       <input v-model="provider.default_domain" type="text" class="input font-mono text-sm" />
                     </div>
                     <div v-if="showField(provider.type, 'domain')" class="sm:col-span-2">
-                      <label class="input-label">Domain（每行一个）</label>
+                      <label class="input-label">域名（每行一个）</label>
                       <textarea :value="listToText(provider.domain)" rows="3" class="input font-mono text-xs" @input="updateList(provider, 'domain', $event)" />
                     </div>
                     <div v-if="showField(provider.type, 'subdomain')" class="sm:col-span-2">
-                      <label class="input-label">Subdomain（每行一个）</label>
+                      <label class="input-label">子域名（每行一个）</label>
                       <textarea :value="listToText(provider.subdomain)" rows="3" class="input font-mono text-xs" @input="updateList(provider, 'subdomain', $event)" />
                     </div>
                     <div class="flex flex-wrap gap-4 sm:col-span-2">
                       <label v-if="showField(provider.type, 'wildcard')" class="inline-flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
                         <input v-model="provider.wildcard" type="checkbox" class="rounded border-gray-300 text-primary-600 focus:ring-primary-500 dark:border-dark-600 dark:bg-dark-800" />
-                        Wildcard
+                        通配符模式
                       </label>
                       <label v-if="showField(provider.type, 'random_subdomain')" class="inline-flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
                         <input v-model="provider.random_subdomain" type="checkbox" class="rounded border-gray-300 text-primary-600 focus:ring-primary-500 dark:border-dark-600 dark:bg-dark-800" />
-                        Random Subdomain
+                        随机子域名
                       </label>
                     </div>
                   </div>
@@ -308,12 +322,12 @@ const activeModeHint = computed(() => {
 const providerTypeOptions = [
   { value: 'mailtm', label: 'mail.tm' },
   { value: 'custom', label: '自定义 mail.tm 兼容接口' },
-  { value: 'cloudflare_temp_email', label: 'Cloudflare Temp Email' },
-  { value: 'tempmail_lol', label: 'tempmail.lol' },
+  { value: 'cloudflare_temp_email', label: 'Cloudflare 临时邮箱' },
+  { value: 'tempmail_lol', label: 'TempMail.lol' },
   { value: 'inbucket', label: 'Inbucket' },
-  { value: 'moemail', label: 'Moemail' },
+  { value: 'moemail', label: 'MoEmail' },
   { value: 'cloudmail_gen', label: 'CloudMail Gen' },
-  { value: 'ddg_mail', label: 'DDG Mail' },
+  { value: 'ddg_mail', label: 'DDG 邮箱 + CF 中转' },
   { value: 'duckmail', label: 'DuckMail' },
   { value: 'gptmail', label: 'GPTMail' },
   { value: 'yyds_mail', label: 'YYDS Mail' },
@@ -322,15 +336,15 @@ const providerTypeOptions = [
 const fieldsByProvider: Record<string, string[]> = {
   mailtm: ['api_base', 'api_key'],
   custom: ['api_base', 'api_key', 'domain'],
-  cloudflare_temp_email: ['api_base', 'api_key', 'domain', 'cf_inbox_jwt', 'cf_auth_mode', 'wildcard', 'random_subdomain', 'email_prefix', 'default_domain'],
+  cloudflare_temp_email: ['api_base', 'admin_password', 'domain'],
   tempmail_lol: ['api_base', 'api_key', 'domain'],
-  inbucket: ['api_base', 'domain', 'email_prefix'],
+  inbucket: ['api_base', 'domain', 'random_subdomain'],
   moemail: ['api_base', 'api_key', 'domain'],
-  cloudmail_gen: ['api_base', 'api_key', 'domain', 'subdomain', 'wildcard', 'random_subdomain', 'email_prefix', 'default_domain'],
-  ddg_mail: ['ddg_token', 'email_prefix'],
-  duckmail: ['ddg_token', 'email_prefix'],
-  gptmail: ['api_base', 'api_key', 'domain', 'admin_email', 'admin_password'],
-  yyds_mail: ['api_base', 'api_key', 'domain', 'admin_email', 'admin_password'],
+  cloudmail_gen: ['api_base', 'api_key', 'admin_email', 'admin_password', 'domain', 'subdomain', 'email_prefix'],
+  ddg_mail: ['ddg_token', 'cf_inbox_jwt', 'cf_api_base', 'cf_api_key', 'cf_auth_mode', 'admin_password', 'cf_messages_path'],
+  duckmail: ['api_key', 'default_domain'],
+  gptmail: ['api_key', 'default_domain'],
+  yyds_mail: ['api_base', 'api_key', 'domain', 'subdomain', 'wildcard'],
 }
 
 function showField(type: string, field: string): boolean {
