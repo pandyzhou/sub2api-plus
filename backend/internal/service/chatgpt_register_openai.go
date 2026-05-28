@@ -319,7 +319,7 @@ func (c *chatGPTRegisterOpenAIClient) loginAndExchangeTokens(ctx context.Context
 	}
 	login.setDeviceCookies()
 
-	loginVerifier, challenge, state, nonce := chatGPTRegisterGeneratePKCE()
+	_, challenge, state, nonce := chatGPTRegisterGeneratePKCE()
 	params := url.Values{"issuer": {chatGPTRegisterAuthBase}, "client_id": {chatGPTRegisterPlatformOAuthClientID}, "audience": {chatGPTRegisterPlatformOAuthAudience}, "redirect_uri": {chatGPTRegisterPlatformRedirectURI()}, "device_id": {login.deviceID}, "screen_hint": {"login_or_signup"}, "max_age": {"0"}, "login_hint": {email}, "scope": {"openid profile email offline_access"}, "response_type": {"code"}, "response_mode": {"query"}, "state": {state}, "nonce": {nonce}, "code_challenge": {challenge}, "code_challenge_method": {"S256"}, "auth0Client": {chatGPTRegisterPlatformAuth0Client}}
 	req, _ := http.NewRequestWithContext(ctx, http.MethodGet, strings.TrimRight(chatGPTRegisterAuthBase, "/")+"/api/accounts/authorize?"+params.Encode(), nil)
 	for k, v := range chatGPTRegisterNavigateHeaders(strings.TrimRight(chatGPTRegisterPlatformBase, "/")+"/") {
@@ -355,7 +355,7 @@ func (c *chatGPTRegisterOpenAIClient) loginAndExchangeTokens(ctx context.Context
 		return nil, err
 	}
 
-	continueURL := strings.TrimSpace(fmt.Sprint(payload["continue_url"]))
+continueURL := strings.TrimSpace(fmt.Sprint(payload["continue_url"]))
 	pageType := ""
 	if page := mapAny(payload["page"]); page != nil {
 		pageType = stringAny(page, "type")
@@ -373,41 +373,35 @@ func (c *chatGPTRegisterOpenAIClient) loginAndExchangeTokens(ctx context.Context
 		}
 	}
 
-	// After password verification, OpenAI returns a continue_url that
-	// either contains an OAuth code directly or is a redirect to one.
-	// If no continue_url was returned, fall back to the Codex OAuth flow.
-	code, extractErr := login.extractOAuthCodeFromContinueURL(ctx, continueURL)
-if extractErr == nil && code != "" {
-		// The code from continue_url is bound to the PKCE challenge we sent
-		// in the login platformAuthorize step. Use the matching verifier.
-		form := url.Values{"grant_type": {"authorization_code"}, "code": {code}, "redirect_uri": {chatGPTRegisterPlatformRedirectURI()}, "client_id": {chatGPTRegisterPlatformOAuthClientID}, "code_verifier": {loginVerifier}}
-		req, err := http.NewRequestWithContext(ctx, http.MethodPost, strings.TrimRight(chatGPTRegisterAuthBase, "/")+"/oauth/token", strings.NewReader(form.Encode()))
-		if err != nil {
-			return nil, err
-		}
-		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-		resp, body, err := login.tlsDo(req)
-		if err != nil {
-			return nil, err
-		}
-		if resp.StatusCode != 200 {
-			return nil, fmt.Errorf("oauth_token_http_%d: %s", resp.StatusCode, truncateString(string(body), 300))
-		}
-		var data registerTokens
-		var raw map[string]any
-		if err := json.Unmarshal(body, &raw); err != nil {
-			return nil, err
-		}
-		data.AccessToken = strings.TrimSpace(fmt.Sprint(raw["access_token"]))
-		data.RefreshToken = strings.TrimSpace(fmt.Sprint(raw["refresh_token"]))
-		data.IDToken = strings.TrimSpace(fmt.Sprint(raw["id_token"]))
-		if data.AccessToken == "" || data.RefreshToken == "" || data.IDToken == "" {
-			return nil, fmt.Errorf("token exchange failed: empty tokens (access=%t refresh=%t id=%t)", data.AccessToken != "", data.RefreshToken != "", data.IDToken != "")
-		}
-		return &data, nil
+	// Start a local HTTP server to receive the OAuth callback.
+	// OpenAI's Codex simplified flow redirects to localhost:1455/auth/callback
+	// with the authorization code after the user is authenticated.
+	callbackCode := make(chan string, 1)
+	cbServer := &http.Server{
+		Addr: ":1455",
+		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if code := r.URL.Query().Get("code"); code != "" {
+				select {
+				case callbackCode <- code:
+				default:
+				}
+				w.Header().Set("Content-Type", "text/html")
+				w.WriteHeader(http.StatusOK)
+				_, _ = w.Write([]byte(`<html><body><h1>Authorization successful!</h1><p>You can close this window.</p></body></html>`))
+			} else {
+				w.WriteHeader(http.StatusBadRequest)
+			}
+		}),
 	}
+	go func() {
+		_ = cbServer.ListenAndServe()
+	}()
+	defer cbServer.Close()
 
-	// Fall back: try the Codex OAuth flow with the login's PKCE pair.
+	// Give the server a moment to start listening.
+	time.Sleep(100 * time.Millisecond)
+
+	// Generate a fresh PKCE pair for the token exchange.
 	exchangeVerifier, err := openaioauth.GenerateCodeVerifier()
 	if err != nil {
 		return nil, err
@@ -417,8 +411,107 @@ if extractErr == nil && code != "" {
 		return nil, err
 	}
 	exchangeChallenge := openaioauth.GenerateCodeChallenge(exchangeVerifier)
-	exchangeAuthURL := chatGPTRegisterCodexAuthorizationURL(exchangeState, exchangeChallenge)
-	return login.exchangePlatformTokens(ctx, exchangeVerifier, exchangeAuthURL)
+
+	// Navigate to the Codex OAuth authorize URL. With codex_cli_simplified_flow=true
+	// the server should 302 redirect to our localhost callback with the code.
+	authURL := chatGPTRegisterCodexAuthorizationURL(exchangeState, exchangeChallenge)
+	oauthReq, err := http.NewRequestWithContext(ctx, http.MethodGet, authURL, nil)
+	if err != nil {
+		return nil, err
+	}
+	for k, v := range chatGPTRegisterNavigateHeaders("") {
+		oauthReq.Header.Set(k, v)
+	}
+	oauthResp, _, err := login.tlsDo(oauthReq)
+	if err != nil {
+		return nil, fmt.Errorf("codex_oauth_authorize: %w", err)
+	}
+
+	// Check if we got a redirect to our callback.
+	code := ""
+	if c := oauthCodeFromURL(oauthResp.Request.URL.String()); c != "" {
+		code = c
+	} else if loc := oauthResp.Header.Get("Location"); loc != "" {
+		if c := oauthCodeFromURL(loc); c != "" {
+			code = c
+		}
+	}
+
+	// If no code in redirect (SPA response), wait for the local callback server.
+	if code == "" {
+		// The response was likely a 200 HTML page (SPA).
+		// Try following the redirect chain manually.
+		if oauthResp.StatusCode >= 300 && oauthResp.StatusCode <= 399 {
+			loc := oauthResp.Header.Get("Location")
+			for i := 0; i < 10 && loc != ""; i++ {
+				if strings.HasPrefix(loc, "/") {
+					loc = strings.TrimRight(chatGPTRegisterAuthBase, "/") + loc
+				}
+				if c := oauthCodeFromURL(loc); c != "" {
+					code = c
+					break
+				}
+				followReq, _ := http.NewRequestWithContext(ctx, http.MethodGet, loc, nil)
+				for k, v := range chatGPTRegisterNavigateHeaders("") {
+					followReq.Header.Set(k, v)
+				}
+				followResp, _, err := login.tlsDo(followReq)
+				if err != nil {
+					break
+				}
+				if c := oauthCodeFromURL(followResp.Request.URL.String()); c != "" {
+					code = c
+					break
+				}
+				loc = followResp.Header.Get("Location")
+				if followResp.StatusCode < 300 || followResp.StatusCode > 399 {
+					break
+				}
+			}
+		}
+	}
+
+	// If still no code, wait for the local callback server (Codex redirects to localhost).
+	if code == "" {
+		select {
+		case code = <-callbackCode:
+		case <-ctx.Done():
+			return nil, fmt.Errorf("codex_oauth: timeout waiting for callback code")
+		}
+	}
+
+	// Exchange the code for tokens.
+	form := url.Values{
+		"grant_type":    {"authorization_code"},
+		"code":          {code},
+		"redirect_uri":  {openaioauth.DefaultRedirectURI},
+		"client_id":     {openaioauth.ClientID},
+		"code_verifier": {exchangeVerifier},
+	}
+	tokenReq, err := http.NewRequestWithContext(ctx, http.MethodPost, strings.TrimRight(chatGPTRegisterAuthBase, "/")+"/oauth/token", strings.NewReader(form.Encode()))
+	if err != nil {
+		return nil, err
+	}
+	tokenReq.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	tokenResp, tokenBody, err := login.tlsDo(tokenReq)
+	if err != nil {
+		return nil, err
+	}
+	if tokenResp.StatusCode != 200 {
+		return nil, fmt.Errorf("oauth_token_http_%d: %s", tokenResp.StatusCode, truncateString(string(tokenBody), 300))
+	}
+	var data registerTokens
+	var raw map[string]any
+	if err := json.Unmarshal(tokenBody, &raw); err != nil {
+		return nil, err
+	}
+	data.AccessToken = strings.TrimSpace(fmt.Sprint(raw["access_token"]))
+	data.RefreshToken = strings.TrimSpace(fmt.Sprint(raw["refresh_token"]))
+	data.IDToken = strings.TrimSpace(fmt.Sprint(raw["id_token"]))
+	if data.AccessToken == "" || data.RefreshToken == "" || data.IDToken == "" {
+		return nil, fmt.Errorf("token exchange failed: empty tokens")
+	}
+	return &data, nil
 }
 
 // extractOAuthCodeFromContinueURL tries to extract an OAuth code from the
