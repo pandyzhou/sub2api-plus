@@ -54,6 +54,7 @@ func newChatGPTRegisterOpenAIClient(proxyURL, deviceID string) (*chatGPTRegister
 		deviceID = chatGPTRegisterRandomUUID()
 	}
 
+	tlsProxyURL := chatGPTRegisterTLSProxyURL(proxyURL)
 	tlsJar := tlsclient.NewCookieJar()
 	tlsOpts := []tlsclient.HttpClientOption{
 		tlsclient.WithTimeoutSeconds(60),
@@ -61,15 +62,30 @@ func newChatGPTRegisterOpenAIClient(proxyURL, deviceID string) (*chatGPTRegister
 		tlsclient.WithNotFollowRedirects(),
 		tlsclient.WithCookieJar(tlsJar),
 	}
-	if strings.TrimSpace(proxyURL) != "" {
-		tlsOpts = append(tlsOpts, tlsclient.WithProxyUrl(strings.TrimSpace(proxyURL)))
+	if tlsProxyURL != "" {
+		tlsOpts = append(tlsOpts, tlsclient.WithProxyUrl(tlsProxyURL))
 	}
 	tlsCli, err := tlsclient.NewHttpClient(tlsclient.NewNoopLogger(), tlsOpts...)
 	if err != nil {
 		return nil, fmt.Errorf("init tls-client: %w", err)
 	}
 
-	return &chatGPTRegisterOpenAIClient{http: client, tlsClient: tlsCli, deviceID: deviceID, proxyURL: proxyURL}, nil
+	return &chatGPTRegisterOpenAIClient{http: client, tlsClient: tlsCli, deviceID: deviceID, proxyURL: tlsProxyURL}, nil
+}
+
+func chatGPTRegisterTLSProxyURL(proxyURL string) string {
+	if proxyURL = strings.TrimSpace(proxyURL); proxyURL != "" {
+		return proxyURL
+	}
+	req, err := http.NewRequest(http.MethodGet, strings.TrimRight(chatGPTRegisterAuthBase, "/"), nil)
+	if err != nil {
+		return ""
+	}
+	u, err := http.ProxyFromEnvironment(req)
+	if err != nil || u == nil {
+		return ""
+	}
+	return u.String()
 }
 
 func (c *chatGPTRegisterOpenAIClient) close() {

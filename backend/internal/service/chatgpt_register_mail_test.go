@@ -91,6 +91,20 @@ func TestChatGPTRegisterProxyHelperSupportsHTTPAndSocksErrorsUnsupported(t *test
 	}
 }
 
+func TestChatGPTRegisterTLSProxyURLFallsBackToEnvironment(t *testing.T) {
+	t.Setenv("HTTP_PROXY", "")
+	t.Setenv("HTTPS_PROXY", "http://127.0.0.1:7890")
+	t.Setenv("NO_PROXY", "")
+
+	got := chatGPTRegisterTLSProxyURL("")
+	if got != "http://127.0.0.1:7890" {
+		t.Fatalf("tls proxy fallback = %q, want env proxy", got)
+	}
+	if got := chatGPTRegisterTLSProxyURL("http://127.0.0.1:8080"); got != "http://127.0.0.1:8080" {
+		t.Fatalf("explicit tls proxy = %q", got)
+	}
+}
+
 func TestChatGPTRegisterOpenAIHeadersAndSentinel(t *testing.T) {
 	oldAuth, oldPlatform, oldSentinel := chatGPTRegisterAuthBase, chatGPTRegisterPlatformBase, chatGPTRegisterSentinelBase
 	defer func() {
