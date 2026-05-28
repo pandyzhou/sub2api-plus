@@ -330,6 +330,9 @@ func (c *chatGPTRegisterOpenAIClient) loginAndExchangeTokens(ctx context.Context
 	if resp.StatusCode != 200 && resp.StatusCode != 302 && resp.StatusCode != 307 {
 		return nil, fmt.Errorf("platform_login_authorize_http_%d: %s", resp.StatusCode, truncateString(string(body), 300))
 	}
+	if svc != nil {
+		svc.appendLog("登录平台授权成功", "success")
+	}
 
 	h := chatGPTRegisterCommonHeaders(login.deviceID, strings.TrimRight(chatGPTRegisterAuthBase, "/")+"/log-in?usernameKind=email")
 	token, err := login.buildSentinelToken(ctx, "authorize_continue")
@@ -352,6 +355,9 @@ func (c *chatGPTRegisterOpenAIClient) loginAndExchangeTokens(ctx context.Context
 	if err != nil {
 		return nil, err
 	}
+	if svc != nil {
+		svc.appendLog("密码验证成功", "success")
+	}
 
 	continueURL := strings.TrimSpace(fmt.Sprint(payload["continue_url"]))
 	pageType := strings.TrimSpace(fmt.Sprint(payload["type"]))
@@ -366,19 +372,33 @@ func (c *chatGPTRegisterOpenAIClient) loginAndExchangeTokens(ctx context.Context
 		if err != nil {
 			return nil, err
 		}
+		svc.appendLog(fmt.Sprintf("登录验证码获取成功: %s", code), "success")
 		if err := login.validateOTP(ctx, code); err != nil {
 			return nil, err
 		}
 	}
 
 	code := ""
+	codeSource := ""
 	if tokenPayload := mapAny(payload["payload"]); tokenPayload != nil {
 		code = strings.TrimSpace(fmt.Sprint(tokenPayload["code"]))
+		codeSource = "payload"
 	}
 	if code == "" {
 		code = oauthCodeFromURL(continueURL)
+		codeSource = "continue_url"
+	}
+	if svc != nil {
+		codePreview := code
+		if len(codePreview) > 8 {
+			codePreview = codePreview[:8] + "..."
+		}
+		svc.appendLog(fmt.Sprintf("提取 OAuth code: source=%s, code=%s", codeSource, codePreview), "info")
 	}
 	if code == "" {
+		if svc != nil {
+			svc.appendLog(fmt.Sprintf("token交换失败诊断: pageType=%q, continueURL=%q, payload_keys=%v", pageType, truncateString(continueURL, 100), mapKeys(payload)), "error")
+		}
 		return nil, fmt.Errorf("login_exchange: token_exchange code missing, type=%q continue_url=%q payload_keys=%v", pageType, continueURL, mapKeys(payload))
 	}
 
@@ -393,7 +413,14 @@ func (c *chatGPTRegisterOpenAIClient) loginAndExchangeTokens(ctx context.Context
 		return nil, err
 	}
 	if tokenResp.StatusCode != 200 {
-		return nil, fmt.Errorf("login_exchange_token_http_%d: %s", tokenResp.StatusCode, truncateString(string(tokenBody), 300))
+		codePreview := code
+		if len(codePreview) > 8 {
+			codePreview = codePreview[:8] + "..."
+		}
+		if svc != nil {
+			svc.appendLog(fmt.Sprintf("token交换失败诊断: code=%s, pageType=%q, continueURL=%q, HTTP=%d, body=%s", codePreview, pageType, truncateString(continueURL, 100), tokenResp.StatusCode, truncateString(string(tokenBody), 300)), "error")
+		}
+		return nil, fmt.Errorf("login_exchange_token_http_%d: token_exchange_user_error, type=%q continue_url=%q code=%s body=%s", tokenResp.StatusCode, pageType, truncateString(continueURL, 100), codePreview, truncateString(string(tokenBody), 300))
 	}
 	var data registerTokens
 	var raw map[string]any
@@ -405,6 +432,9 @@ func (c *chatGPTRegisterOpenAIClient) loginAndExchangeTokens(ctx context.Context
 	data.IDToken = strings.TrimSpace(fmt.Sprint(raw["id_token"]))
 	if data.AccessToken == "" || data.RefreshToken == "" || data.IDToken == "" {
 		return nil, fmt.Errorf("login_exchange: token exchange failed, empty tokens")
+	}
+	if svc != nil {
+		svc.appendLog("token 交换成功", "success")
 	}
 	return &data, nil
 }

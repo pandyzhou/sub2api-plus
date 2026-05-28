@@ -322,7 +322,10 @@ func (s *ChatGPTRegisterService) bumpStats(success, fail, done, running int) {
 	s.cfg.Stats.Success += success
 	s.cfg.Stats.Fail += fail
 	s.cfg.Stats.Done += done
-	s.cfg.Stats.Running = running
+	s.cfg.Stats.Running += running
+	if s.cfg.Stats.Running < 0 {
+		s.cfg.Stats.Running = 0
+	}
 	s.cfg.Stats.UpdatedAt = time.Now().UTC().Format(time.RFC3339)
 	if s.cfg.Stats.StartedAt != "" {
 		started, err := time.Parse(time.RFC3339, s.cfg.Stats.StartedAt)
@@ -355,39 +358,69 @@ func (s *ChatGPTRegisterService) run(ctx context.Context) {
 
 	s.appendLog(fmt.Sprintf("注册任务运行中，模式=%s，线程=%d", s.cfg.Mode, s.cfg.Threads), "info")
 
-	submitted := 0
+	maxThreads := s.cfg.Threads
+	if maxThreads < 1 {
+		maxThreads = 1
+	}
+	sem := make(chan struct{}, maxThreads)
+
+	submitted := int64(0)
+	var wg sync.WaitGroup
+
 	for {
 		select {
 		case <-ctx.Done():
+			wg.Wait()
 			return
 		default:
 		}
 
 		cfg := s.currentConfig()
 		if !cfg.Enabled {
+			wg.Wait()
 			return
 		}
-		if s.targetReached(cfg, submitted) {
+		curSubmitted := int(atomic.LoadInt64(&submitted))
+		if s.targetReached(cfg, curSubmitted) {
+			s.appendLog("已提交目标数量，等待进行中的注册完成", "info")
+			wg.Wait()
 			s.appendLog("已达到目标，停止注册", "info")
 			return
 		}
 
-		// Execute one registration
-		s.bumpStats(0, 0, 0, 1)
-		s.appendLog(fmt.Sprintf("开始注册第 %d 个账号", submitted+1), "info")
-		result := s.registerOne(ctx, cfg)
-		if result {
-			s.bumpStats(1, 0, 1, 0)
-			s.appendLog(fmt.Sprintf("第 %d 个注册成功", submitted+1), "success")
-		} else {
-			s.bumpStats(0, 1, 1, 0)
-			s.appendLog(fmt.Sprintf("第 %d 个注册失败", submitted+1), "error")
-		}
-		submitted++
-
-		// Wait between registrations
+		// Acquire semaphore slot (blocks if all threads are busy)
 		select {
 		case <-ctx.Done():
+			wg.Wait()
+			return
+		case sem <- struct{}{}:
+		}
+
+		atomic.AddInt64(&submitted, 1)
+		idx := int(atomic.LoadInt64(&submitted))
+
+		s.bumpStats(0, 0, 0, 1)
+		s.appendLog(fmt.Sprintf("开始注册第 %d 个账号", idx), "info")
+
+		wg.Add(1)
+		go func(idx int, cfg ChatGPTRegisterConfig) {
+			defer wg.Done()
+			defer func() { <-sem }()
+
+			result := s.registerOne(ctx, cfg)
+			if result {
+				s.bumpStats(1, 0, 1, -1)
+				s.appendLog(fmt.Sprintf("第 %d 个注册成功", idx), "success")
+			} else {
+				s.bumpStats(0, 1, 1, -1)
+				s.appendLog(fmt.Sprintf("第 %d 个注册失败", idx), "error")
+			}
+		}(idx, cfg)
+
+		// Brief pause between dispatching goroutines to avoid burst
+		select {
+		case <-ctx.Done():
+			wg.Wait()
 			return
 		case <-time.After(2 * time.Second):
 		}
