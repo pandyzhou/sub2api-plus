@@ -310,95 +310,85 @@ func (c *chatGPTRegisterOpenAIClient) createAccountProfile(ctx context.Context, 
 	return err
 }
 
-func (c *chatGPTRegisterOpenAIClient) loginAndExchangeTokens(ctx context.Context, email, password, registrationCodeVerifier string, mailbox *tempMailbox, cfg ChatGPTRegisterConfig, svc *ChatGPTRegisterService) (*registerTokens, error) {
-	// Use the SAME client from registration (shared session cookies).
-	// The registration phase already established an Auth0 session via
-	// platformAuthorize, so we skip login entirely and use the existing
-	// authenticated session to directly obtain an OAuth authorization code.
-	//
-	// After registration + verification, the session is fully authenticated.
-	// We navigate to the Codex OAuth authorize URL with the registration
-	// client's cookies, which should give us a 302 redirect with the code.
-	// We use the registrationCodeVerifier (from platformAuthorize) for the
-	// PKCE token exchange.
-
-	// Navigate to the Codex OAuth authorize URL with the authenticated session.
-	// With codex_cli_simplified_flow=true and an authenticated session,
-	// OpenAI should redirect directly to our redirect_uri with the code.
-	state, err := openaioauth.GenerateState()
+func (c *chatGPTRegisterOpenAIClient) loginAndExchangeTokens(ctx context.Context, email, password, _ string, mailbox *tempMailbox, cfg ChatGPTRegisterConfig, svc *ChatGPTRegisterService) (*registerTokens, error) {
+	login, err := newChatGPTRegisterOpenAIClient(cfg.Proxy, "")
 	if err != nil {
 		return nil, err
 	}
-	codeChallenge := openaioauth.GenerateCodeChallenge(registrationCodeVerifier)
-	authURL := chatGPTRegisterCodexAuthorizationURL(state, codeChallenge)
+	login.setDeviceCookies()
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, authURL, nil)
-	if err != nil {
-		return nil, err
-	}
-	for k, v := range chatGPTRegisterNavigateHeaders(strings.TrimRight(chatGPTRegisterPlatformBase, "/") + "/") {
+	loginVerifier, challenge, state, nonce := chatGPTRegisterGeneratePKCE()
+	params := url.Values{"issuer": {chatGPTRegisterAuthBase}, "client_id": {chatGPTRegisterPlatformOAuthClientID}, "audience": {chatGPTRegisterPlatformOAuthAudience}, "redirect_uri": {chatGPTRegisterPlatformRedirectURI()}, "device_id": {login.deviceID}, "screen_hint": {"login_or_signup"}, "max_age": {"0"}, "login_hint": {email}, "scope": {"openid profile email offline_access"}, "response_type": {"code"}, "response_mode": {"query"}, "state": {state}, "nonce": {nonce}, "code_challenge": {challenge}, "code_challenge_method": {"S256"}, "auth0Client": {chatGPTRegisterPlatformAuth0Client}}
+	req, _ := http.NewRequestWithContext(ctx, http.MethodGet, strings.TrimRight(chatGPTRegisterAuthBase, "/")+"/api/accounts/authorize?"+params.Encode(), nil)
+	for k, v := range chatGPTRegisterNavigateHeaders(strings.TrimRight(chatGPTRegisterPlatformBase, "/")+"/") {
 		req.Header.Set(k, v)
 	}
+	resp, body, err := login.tlsDo(req)
+	if err != nil {
+		return nil, err
+	}
+	if resp.StatusCode != 200 && resp.StatusCode != 302 && resp.StatusCode != 307 {
+		return nil, fmt.Errorf("platform_login_authorize_http_%d: %s", resp.StatusCode, truncateString(string(body), 300))
+	}
 
-	// Follow redirects manually to extract the authorization code.
-	// tls-client has WithNotFollowRedirects(), so we handle each redirect.
-	currentURL := authURL
-	var code string
-	for i := 0; i < 15; i++ {
-		req, err = http.NewRequestWithContext(ctx, http.MethodGet, currentURL, nil)
+	h := chatGPTRegisterCommonHeaders(login.deviceID, strings.TrimRight(chatGPTRegisterAuthBase, "/")+"/log-in?usernameKind=email")
+	token, err := login.buildSentinelToken(ctx, "authorize_continue")
+	if err != nil {
+		return nil, err
+	}
+	h["OpenAI-Sentinel-Token"] = token
+	_, _, _, err = login.requestJSON(ctx, http.MethodPost, strings.TrimRight(chatGPTRegisterAuthBase, "/")+"/api/accounts/authorize/continue", map[string]any{"username": map[string]string{"kind": "email", "value": email}}, h, 200)
+	if err != nil {
+		return nil, err
+	}
+
+	h = chatGPTRegisterCommonHeaders(login.deviceID, strings.TrimRight(chatGPTRegisterAuthBase, "/")+"/log-in/password")
+	token, err = login.buildSentinelToken(ctx, "password_verify")
+	if err != nil {
+		return nil, err
+	}
+	h["OpenAI-Sentinel-Token"] = token
+	payload, _, _, err := login.requestJSON(ctx, http.MethodPost, strings.TrimRight(chatGPTRegisterAuthBase, "/")+"/api/accounts/password/verify", map[string]string{"password": password}, h, 200)
+	if err != nil {
+		return nil, err
+	}
+
+	continueURL := strings.TrimSpace(fmt.Sprint(payload["continue_url"]))
+	pageType := strings.TrimSpace(fmt.Sprint(payload["type"]))
+	if page := mapAny(payload["page"]); page != nil {
+		pageType = stringAny(page, "type")
+	}
+	if pageType == "email_otp_verification" || strings.Contains(continueURL, "email-verification") || strings.Contains(continueURL, "email-otp") {
+		if svc == nil {
+			return nil, fmt.Errorf("独立登录需要邮箱验证码但服务不可用")
+		}
+		code, err := svc.waitForOTPCode(ctx, mailbox, cfg)
 		if err != nil {
-			return nil, fmt.Errorf("login_exchange: create request: %w", err)
+			return nil, err
 		}
-		for k, v := range chatGPTRegisterNavigateHeaders(strings.TrimRight(chatGPTRegisterPlatformBase, "/") + "/") {
-			req.Header.Set(k, v)
-		}
-		resp, _, err := c.tlsDo(req)
-		if err != nil {
-			return nil, fmt.Errorf("login_exchange: request failed: %w", err)
-		}
-
-		// Check if the response URL contains the code parameter.
-		if c := resp.Request.URL.Query().Get("code"); c != "" {
-			code = c
-			break
-		}
-		loc := resp.Header.Get("Location")
-		if c := oauthCodeFromURL(loc); c != "" {
-			code = c
-			break
-		}
-
-		// If not a redirect, we got a response body (likely SPA HTML).
-		if resp.StatusCode < 300 || resp.StatusCode > 399 || loc == "" {
-			return nil, fmt.Errorf("login_exchange: unexpected status %d (expected redirect with code), location=%q", resp.StatusCode, loc)
-		}
-
-		// Follow the redirect.
-		if strings.HasPrefix(loc, "/") {
-			currentURL = strings.TrimRight(chatGPTRegisterAuthBase, "/") + loc
-		} else {
-			currentURL = loc
+		if err := login.validateOTP(ctx, code); err != nil {
+			return nil, err
 		}
 	}
 
+	code := ""
+	if tokenPayload := mapAny(payload["payload"]); tokenPayload != nil {
+		code = strings.TrimSpace(fmt.Sprint(tokenPayload["code"]))
+	}
 	if code == "" {
-		return nil, fmt.Errorf("login_exchange: no authorization code received after following redirects")
+		code = oauthCodeFromURL(continueURL)
+	}
+	if code == "" {
+		return nil, fmt.Errorf("login_exchange: token_exchange code missing, type=%q continue_url=%q payload_keys=%v", pageType, continueURL, mapKeys(payload))
 	}
 
-	// Exchange the code for tokens using the registration PKCE verifier.
-	form := url.Values{
-		"grant_type":    {"authorization_code"},
-		"code":          {code},
-		"redirect_uri":  {openaioauth.DefaultRedirectURI},
-		"client_id":     {openaioauth.ClientID},
-		"code_verifier": {registrationCodeVerifier},
-	}
+	form := url.Values{"grant_type": {"authorization_code"}, "code": {code}, "redirect_uri": {chatGPTRegisterPlatformRedirectURI()}, "client_id": {chatGPTRegisterPlatformOAuthClientID}, "code_verifier": {loginVerifier}}
 	tokenReq, err := http.NewRequestWithContext(ctx, http.MethodPost, strings.TrimRight(chatGPTRegisterAuthBase, "/")+"/oauth/token", strings.NewReader(form.Encode()))
 	if err != nil {
 		return nil, err
 	}
 	tokenReq.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	tokenResp, tokenBody, err := c.tlsDo(tokenReq)
+	tokenResp, tokenBody, err := login.tlsDo(tokenReq)
 	if err != nil {
 		return nil, err
 	}
@@ -417,6 +407,14 @@ func (c *chatGPTRegisterOpenAIClient) loginAndExchangeTokens(ctx context.Context
 		return nil, fmt.Errorf("login_exchange: token exchange failed, empty tokens")
 	}
 	return &data, nil
+}
+
+func mapKeys(m map[string]any) []string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	return keys
 }
 
 func oauthCodeFromURL(raw string) string {

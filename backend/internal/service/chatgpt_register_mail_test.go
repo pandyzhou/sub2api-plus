@@ -146,17 +146,29 @@ func TestChatGPTRegisterLoginTokenExchangeUsesLoginPKCEVerifier(t *testing.T) {
 	}()
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
-		case "/oauth/authorize":
-			// Codex OAuth flow: redirect to callback with code
-			http.Redirect(w, r, "/auth/callback?code=test-oauth-code&state=test-state", http.StatusFound)
-		case "/auth/callback":
+		case "/api/accounts/authorize":
 			w.WriteHeader(http.StatusOK)
+		case "/backend-api/sentinel/req":
+			_ = json.NewEncoder(w).Encode(map[string]any{"token": "sentinel-cookie"})
+		case "/api/accounts/authorize/continue":
+			_ = json.NewEncoder(w).Encode(map[string]any{})
+		case "/api/accounts/password/verify":
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"type": "token_exchange",
+				"continue_url": "http://unused.local/auth/callback?code=oauth-code",
+				"payload": map[string]any{"code": "oauth-code", "state": "state-1"},
+			})
 		case "/oauth/token":
 			if err := r.ParseForm(); err != nil {
 				t.Fatal(err)
 			}
-			if r.Form.Get("code_verifier") == "" {
-				t.Fatal("missing code_verifier in token exchange")
+			if r.Form.Get("code_verifier") == "registration-verifier" {
+				w.WriteHeader(http.StatusBadRequest)
+				_, _ = w.Write([]byte(`{"error":"used registration verifier"}`))
+				return
+			}
+			if r.Form.Get("code") != "oauth-code" {
+				t.Fatalf("code = %q", r.Form.Get("code"))
 			}
 			_ = json.NewEncoder(w).Encode(map[string]any{"access_token": "access", "refresh_token": "refresh", "id_token": "id", "expires_in": 3600})
 		default:
@@ -171,7 +183,7 @@ func TestChatGPTRegisterLoginTokenExchangeUsesLoginPKCEVerifier(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	tokens, err := client.loginAndExchangeTokens(context.Background(), "u@example.test", "Password1!", "test-code-verifier", nil, ChatGPTRegisterConfig{}, nil)
+	tokens, err := client.loginAndExchangeTokens(context.Background(), "u@example.test", "Password1!", "registration-verifier", nil, ChatGPTRegisterConfig{}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
