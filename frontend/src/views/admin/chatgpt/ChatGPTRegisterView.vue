@@ -12,10 +12,6 @@
         </div>
 
         <div class="flex flex-wrap items-center gap-2">
-          <button @click="store.save()" :disabled="store.actionBusy || store.isRunning" class="btn btn-secondary">
-            <span v-if="store.saving" class="animate-spin">↻</span>
-            {{ store.saving ? t('common.saving') : t('chatgpt.register.saveConfig') }}
-          </button>
           <button @click="store.toggle()" :disabled="store.actionBusy" :class="store.isRunning ? 'btn-danger' : 'btn-primary'" class="btn">
             <span v-if="store.toggling" class="animate-spin">↻</span>
             {{ store.toggling ? (store.isRunning ? '停止中...' : '启动中...') : (store.isRunning ? t('chatgpt.register.stop') : t('chatgpt.register.start')) }}
@@ -121,13 +117,19 @@
               <div>
                 <label class="input-label">{{ t('chatgpt.register.fieldProxy') }}</label>
                 <input v-model="store.formProxy" :disabled="store.formDisabled" type="text" placeholder="http://user:pass@host:port" class="input font-mono text-sm" />
-                <p class="input-hint">建议为 OpenAI 注册流程配置代理；可信网络内可留空。</p>
               </div>
 
               <div v-if="store.formMode !== 'total'">
                 <label class="input-label">{{ t('chatgpt.register.fieldCheckInterval') }}</label>
                 <input v-model.number="store.formCheckInterval" :disabled="store.formDisabled" type="number" min="1" class="input" />
                 <p class="input-hint">非总量模式会定期检查当前额度或可用数量。</p>
+              </div>
+
+              <div class="flex justify-end border-t border-gray-200 pt-4 dark:border-dark-700">
+                <button @click="store.save()" :disabled="store.actionBusy || store.isRunning" class="btn btn-primary btn-sm">
+                  <span v-if="store.saving" class="animate-spin">↻</span>
+                  {{ store.saving ? t('common.saving') : t('chatgpt.register.saveConfig') }}
+                </button>
               </div>
             </div>
           </section>
@@ -395,6 +397,20 @@ onMounted(() => {
 onUnmounted(() => {
   store.stopSSE()
 })
+
+// 邮件配置自动保存（防抖 1.5 秒）
+let mailSaveTimer: ReturnType<typeof setTimeout> | null = null
+watch(
+  () => JSON.stringify(store.formMail),
+  () => {
+    if (store.formDisabled || store.isRunning) return
+    if (mailSaveTimer) clearTimeout(mailSaveTimer)
+    mailSaveTimer = setTimeout(() => {
+      store.save()
+    }, 1500)
+  },
+  { deep: false },
+)
 
 watch(
   () => store.recentLogs.length,

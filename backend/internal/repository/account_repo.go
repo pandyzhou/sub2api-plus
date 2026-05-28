@@ -558,6 +558,15 @@ func (r *accountRepository) ListWithFilters(ctx context.Context, params paginati
 		}))
 	}
 
+	// 排除 ChatGPT Web 账号池账号，这些账号由 ChatGPT 账号池页面独立管理
+	q = q.Where(dbpredicate.Account(func(s *entsql.Selector) {
+		path := sqljson.Path("openai_backend_mode")
+		s.Where(entsql.Or(
+			entsql.Not(sqljson.HasKey(dbaccount.FieldExtra, path)),
+			sqljson.ValueNEQ(dbaccount.FieldExtra, "chatgpt_web", path),
+		))
+	}))
+
 	total, err := q.Count(ctx)
 	if err != nil {
 		return nil, nil, err
