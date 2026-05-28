@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math"
 	"strconv"
+	"strings"
 )
 
 func (s *ChatGPTRegisterService) chatGPTWebAccountStats(ctx context.Context) (quota int, available int) {
@@ -61,6 +62,9 @@ func chatGPTRegisterAccountQuota(acc *Account) int {
 	limit, used := acc.GetQuotaLimit(), acc.GetQuotaUsed()
 	if limit > used {
 		return int(math.Round(limit - used))
+	}
+	if strings.EqualFold(chatGPTPoolStringFromAny(acc.Extra["plan_type"]), "free") {
+		return chatGPTFreeImageQuota
 	}
 	return 0
 }

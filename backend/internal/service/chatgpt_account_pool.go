@@ -29,6 +29,7 @@ const (
 	chatGPTAccountPoolOAuthTokenURL = "https://auth.openai.com/oauth/token"
 	chatGPTAccountPoolOAuthClientID = "app_2SKx67EdpoN0G6j64rFvigXD"
 	chatGPTAccountPoolRefreshSkew   = 24 * time.Hour
+	chatGPTFreeImageQuota           = 5
 )
 
 var ErrChatGPTAccountPoolInvalidAccessToken = errors.New("invalid access token")
@@ -586,6 +587,7 @@ func ChatGPTAccountToPoolItem(acc *Account) map[string]any {
 	if item["account_id"] == "" {
 		item["account_id"] = acc.GetCredential("chatgpt_account_id")
 	}
+	item["status"] = acc.Status
 	extraKeys := []string{"openai_backend_mode", "export_type", "plan_type", "quota", "image_quota_unknown", "limits_progress", "default_model_slug", "restore_at", "success", "fail", "invalid_count", "last_invalid_at", "last_refresh_error", "last_refresh_error_at", "last_token_refresh_at", "last_token_refresh_error", "last_token_refresh_error_at"}
 	for _, key := range extraKeys {
 		if acc.Extra != nil {
@@ -597,12 +599,14 @@ func ChatGPTAccountToPoolItem(acc *Account) map[string]any {
 		item[key] = defaultChatGPTPoolExtraValue(key)
 	}
 	planType := strings.TrimSpace(chatGPTPoolStringFromAny(item["plan_type"]))
-	item["type"] = chatGPTPoolFirstNonEmpty(planType, acc.Type)
-	item["account_type"] = acc.Type
-	item["status"] = acc.Status
-	item["name"] = acc.Name
-	item["created_at"] = acc.CreatedAt.UTC().Format(time.RFC3339)
-	item["updated_at"] = acc.UpdatedAt.UTC().Format(time.RFC3339)
+	if planType != "" {
+		item["type"] = planType
+	} else if acc.Type != "" {
+		item["type"] = acc.Type
+	}
+	if _, ok := acc.Extra["quota"]; !ok && strings.EqualFold(planType, "free") {
+		item["quota"] = chatGPTFreeImageQuota
+	}
 	return item
 }
 
@@ -684,7 +688,7 @@ func (s *ChatGPTAccountPoolService) createChatGPTAccount(ctx context.Context, pa
 		extra["fail"] = 0
 	}
 	name := chatGPTPoolFirstNonEmpty(chatGPTPoolStringFromAny(creds["email"]), "ChatGPT-"+prefixString(accessToken, 8))
-	acc := &Account{Name: name, Platform: PlatformOpenAI, Type: accType, Credentials: creds, Extra: extra, Status: StatusActive, Schedulable: true, Concurrency: 3, Priority: 50}
+	acc := &Account{Name: name, Platform: PlatformOpenAI, Type: accType, Credentials: creds, Extra: extra, Status: "正常", Schedulable: true, Concurrency: 3, Priority: 50}
 	applyChatGPTTokenTimestamps(acc)
 	return s.accounts.Create(ctx, acc)
 }

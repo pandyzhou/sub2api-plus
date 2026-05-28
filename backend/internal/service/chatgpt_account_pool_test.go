@@ -278,7 +278,7 @@ func TestChatGPTAccountPool_CreateListUpdateExportAndRefresh(t *testing.T) {
 		t.Fatalf("UpdateAccount error: %v", err)
 	}
 	if (*updated)["type"] != "Team" || (*updated)["status"] != "限流" || (*updated)["quota"] != 3 || (*updated)["image_quota_unknown"] != false {
-		t.Fatalf("updated item mismatch: %#v", *updated)
+		t.Fatalf("updated item mismatch: type=%v status=%v quota=%v unknown=%v", (*updated)["type"], (*updated)["status"], (*updated)["quota"], (*updated)["image_quota_unknown"])
 	}
 
 	exportItems, err := svc.BuildExportItems(context.Background(), []string{expiring})
@@ -363,6 +363,20 @@ func TestChatGPTRegisterComputeAccountStats_UsesPoolFields(t *testing.T) {
 	quota, available := chatGPTRegisterComputeAccountStats([]Account{{Platform: PlatformOpenAI, Type: "free", Status: "正常", Extra: map[string]any{"openai_backend_mode": "chatgpt_web", "quota": float64(4)}}})
 	if quota != 4 || available != 1 {
 		t.Fatalf("stats = quota %d available %d", quota, available)
+	}
+}
+
+func TestChatGPTRegisterComputeAccountStats_DefaultsFreeAccountQuota(t *testing.T) {
+	quota, available := chatGPTRegisterComputeAccountStats([]Account{{Platform: PlatformOpenAI, Type: AccountTypeOAuth, Status: StatusActive, Extra: map[string]any{"openai_backend_mode": "chatgpt_web", "plan_type": "free"}}})
+	if quota != 5 || available != 1 {
+		t.Fatalf("stats = quota %d available %d, want quota 5 available 1", quota, available)
+	}
+}
+
+func TestChatGPTAccountToPoolItem_DefaultsFreeAccountQuota(t *testing.T) {
+	item := ChatGPTAccountToPoolItem(&Account{Platform: PlatformOpenAI, Type: AccountTypeOAuth, Status: StatusActive, Extra: map[string]any{"openai_backend_mode": "chatgpt_web", "plan_type": "free"}})
+	if item["quota"] != 5 {
+		t.Fatalf("quota = %v, want 5", item["quota"])
 	}
 }
 

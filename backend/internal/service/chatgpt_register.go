@@ -526,8 +526,8 @@ func (s *ChatGPTRegisterService) registerOne(ctx context.Context, cfg ChatGPTReg
 			"email":         email,
 			"password":      password,
 		},
-		Extra:       map[string]any{"openai_backend_mode": "chatgpt_web"},
-		Status:      StatusActive,
+		Extra:       map[string]any{"openai_backend_mode": "chatgpt_web", "plan_type": "free", "quota": chatGPTFreeImageQuota, "image_quota_unknown": false},
+		Status:      "正常",
 		Concurrency: 3,
 		Priority:    50,
 	})
