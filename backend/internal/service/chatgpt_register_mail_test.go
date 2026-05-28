@@ -146,26 +146,17 @@ func TestChatGPTRegisterLoginTokenExchangeUsesLoginPKCEVerifier(t *testing.T) {
 	}()
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
-		case "/api/accounts/authorize":
-			w.WriteHeader(http.StatusOK)
-		case "/backend-api/sentinel/req":
-			_ = json.NewEncoder(w).Encode(map[string]any{"token": "sentinel-cookie"})
-		case "/api/accounts/authorize/continue":
-			_ = json.NewEncoder(w).Encode(map[string]any{})
-		case "/api/accounts/password/verify":
-			_ = json.NewEncoder(w).Encode(map[string]any{"continue_url": "/consent"})
-		case "/consent":
-			http.Redirect(w, r, "/auth/callback?code=oauth-code", http.StatusFound)
+		case "/oauth/authorize":
+			// Codex OAuth flow: redirect to callback with code
+			http.Redirect(w, r, "/auth/callback?code=test-oauth-code&state=test-state", http.StatusFound)
 		case "/auth/callback":
 			w.WriteHeader(http.StatusOK)
-		case "/oauth/authorize":
-			if r.URL.Query().Get("codex_cli_simplified_flow") != "true" {
-				t.Fatalf("missing codex simplified flow: %s", r.URL.RawQuery)
-			}
-			http.Redirect(w, r, "/auth/callback?code=oauth-code", http.StatusFound)
 		case "/oauth/token":
 			if err := r.ParseForm(); err != nil {
 				t.Fatal(err)
+			}
+			if r.Form.Get("code_verifier") == "" {
+				t.Fatal("missing code_verifier in token exchange")
 			}
 			_ = json.NewEncoder(w).Encode(map[string]any{"access_token": "access", "refresh_token": "refresh", "id_token": "id", "expires_in": 3600})
 		default:
@@ -180,7 +171,7 @@ func TestChatGPTRegisterLoginTokenExchangeUsesLoginPKCEVerifier(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	tokens, err := client.loginAndExchangeTokens(context.Background(), "u@example.test", "Password1!", "ignored-verifier", nil, ChatGPTRegisterConfig{}, nil)
+	tokens, err := client.loginAndExchangeTokens(context.Background(), "u@example.test", "Password1!", "test-code-verifier", nil, ChatGPTRegisterConfig{}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
