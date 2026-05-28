@@ -4,6 +4,7 @@
 
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
+import { useAppStore } from '@/stores/app'
 import {
   fetchAccounts,
   createAccounts,
@@ -24,6 +25,15 @@ const defaultPoolConfig = (): ChatGPTAccountPoolConfig => ({
   image_account_concurrency: 3,
 })
 
+type RefreshScope = 'all' | 'selected' | 'single'
+
+function refreshSuccessMessage(refreshed: number, errorsCount: number, firstError?: string): string {
+  if (errorsCount > 0) {
+    return `刷新成功 ${refreshed} 个，失败 ${errorsCount} 个${firstError ? `，首个错误：${firstError}` : ''}`
+  }
+  return `刷新成功 ${refreshed} 个账号`
+}
+
 export const useChatGPTAccountsStore = defineStore('chatgptAccounts', () => {
   const accounts = ref<ChatGPTAccount[]>([])
   const loading = ref(false)
@@ -31,6 +41,9 @@ export const useChatGPTAccountsStore = defineStore('chatgptAccounts', () => {
   const configSaving = ref(false)
   const error = ref<string | null>(null)
   const selectedIds = ref<Set<string>>(new Set())
+  const refreshing = ref(false)
+  const refreshingScope = ref<RefreshScope | null>(null)
+  const refreshingTokens = ref<Set<string>>(new Set())
 
   const poolConfig = ref<ChatGPTAccountPoolConfig>(defaultPoolConfig())
 
@@ -81,8 +94,16 @@ export const useChatGPTAccountsStore = defineStore('chatgptAccounts', () => {
   })
 
   const isSelected = (token: string) => selectedIds.value.has(token)
+  const isTokenRefreshing = (token: string) => refreshingTokens.value.has(token)
   const selectedCount = computed(() => selectedIds.value.size)
   const selectedAccounts = computed(() => accounts.value.filter((a) => selectedIds.value.has(a.access_token)))
+  const refreshMessage = computed(() => {
+    if (!refreshing.value) return ''
+    if (refreshingScope.value === 'all') return '正在刷新全部账号信息和额度，账号较多时可能需要几十秒。'
+    if (refreshingScope.value === 'selected') return `正在刷新 ${refreshingTokens.value.size} 个选中账号的信息和额度。`
+    if (refreshingScope.value === 'single') return '正在刷新当前账号信息和额度。'
+    return '正在刷新账号信息和额度。'
+  })
 
   async function load(): Promise<void> {
     loading.value = true
@@ -151,16 +172,52 @@ export const useChatGPTAccountsStore = defineStore('chatgptAccounts', () => {
     await load()
   }
 
+  async function refreshTokenList(tokens: string[], scope: RefreshScope): Promise<void> {
+    if (refreshing.value) return
+    const appStore = useAppStore()
+    refreshing.value = true
+    refreshingScope.value = scope
+    refreshingTokens.value = new Set(tokens)
+    error.value = null
+    try {
+      const result = await refreshAccounts(scope === 'all' ? [] : tokens)
+      if (Array.isArray(result.items)) {
+        accounts.value = result.items
+      } else {
+        await load()
+      }
+      const errors = result.errors || []
+      const refreshed = Number(result.refreshed || 0)
+      const message = refreshSuccessMessage(refreshed, errors.length, errors[0]?.error)
+      if (errors.length > 0) appStore.showError(message)
+      else appStore.showSuccess(message)
+    } catch (err) {
+      const message = err instanceof Error ? err.message : '刷新账号失败'
+      error.value = message
+      appStore.showError(message)
+    } finally {
+      refreshing.value = false
+      refreshingScope.value = null
+      refreshingTokens.value = new Set()
+    }
+  }
+
   async function refreshSelected(): Promise<void> {
     const tokens = Array.from(selectedIds.value)
-    if (!tokens.length) return
-    await refreshAccounts(tokens)
-    await load()
+    if (!tokens.length) {
+      useAppStore().showWarning('请先选择要刷新的账号')
+      return
+    }
+    await refreshTokenList(tokens, 'selected')
+  }
+
+  async function refreshOne(token: string): Promise<void> {
+    if (!token) return
+    await refreshTokenList([token], 'single')
   }
 
   async function refreshAll(): Promise<void> {
-    await refreshAccounts([])
-    await load()
+    await refreshTokenList([], 'all')
   }
 
   async function saveEdit(): Promise<void> {
@@ -208,6 +265,10 @@ export const useChatGPTAccountsStore = defineStore('chatgptAccounts', () => {
     configSaving,
     error,
     selectedIds,
+    refreshing,
+    refreshingScope,
+    refreshingTokens,
+    refreshMessage,
     poolConfig,
     filterStatus,
     filterType,
@@ -225,6 +286,7 @@ export const useChatGPTAccountsStore = defineStore('chatgptAccounts', () => {
     filteredAccounts,
     selectedCount,
     selectedAccounts,
+    isTokenRefreshing,
     load,
     loadPoolConfig,
     savePoolConfig,
@@ -235,6 +297,7 @@ export const useChatGPTAccountsStore = defineStore('chatgptAccounts', () => {
     importAccounts,
     removeSelected,
     refreshSelected,
+    refreshOne,
     refreshAll,
     saveEdit,
     openEdit,

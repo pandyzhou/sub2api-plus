@@ -12,9 +12,9 @@
         </div>
 
         <div class="flex flex-wrap items-center gap-2">
-          <button @click="store.refreshAll()" :disabled="store.loading" class="btn btn-secondary">
-            <span :class="store.loading ? 'animate-spin' : ''">↻</span>
-            {{ t('chatgpt.accounts.refreshAll') }}
+          <button @click="store.refreshAll()" :disabled="store.loading || store.refreshing" class="btn btn-secondary">
+            <span :class="store.refreshingScope === 'all' ? 'animate-spin' : ''">↻</span>
+            {{ store.refreshingScope === 'all' ? '刷新中...' : t('chatgpt.accounts.refreshAll') }}
           </button>
           <button @click="showImportDialog = true" class="btn btn-primary">
             + {{ t('chatgpt.accounts.import') }}
@@ -28,6 +28,18 @@
           <button @click="store.error = null" class="text-xs font-medium underline-offset-4 hover:underline">
             Dismiss
           </button>
+        </div>
+      </div>
+
+      <div v-if="store.refreshing" class="rounded-xl border border-cyan-200 bg-cyan-50 px-4 py-3 text-sm text-cyan-800 shadow-sm dark:border-cyan-900/50 dark:bg-cyan-900/20 dark:text-cyan-200">
+        <div class="flex items-center gap-3">
+          <span class="inline-flex h-7 w-7 items-center justify-center rounded-full bg-cyan-100 text-cyan-700 dark:bg-cyan-900/60 dark:text-cyan-200">
+            <span class="animate-spin">↻</span>
+          </span>
+          <div>
+            <div class="font-medium">{{ store.refreshMessage }}</div>
+            <div class="mt-0.5 text-xs text-cyan-700/80 dark:text-cyan-200/75">刷新期间请勿重复点击，完成后会自动更新账号列表。</div>
+          </div>
         </div>
       </div>
 
@@ -98,8 +110,9 @@
             <span class="rounded-full bg-gray-100 px-3 py-2 text-xs font-medium text-gray-600 dark:bg-dark-700 dark:text-gray-300">
               {{ t('chatgpt.accounts.selectedCount', { n: store.selectedCount }) }}
             </span>
-            <button @click="store.refreshSelected()" class="btn btn-secondary btn-sm">
-              {{ t('chatgpt.accounts.refreshSelected', { n: store.selectedCount }) }}
+            <button @click="store.refreshSelected()" :disabled="store.refreshing" class="btn btn-secondary btn-sm">
+              <span :class="store.refreshingScope === 'selected' ? 'animate-spin' : ''">↻</span>
+              {{ store.refreshingScope === 'selected' ? '刷新中...' : t('chatgpt.accounts.refreshSelected', { n: store.selectedCount }) }}
             </button>
             <button @click="store.showExportDialog = true" class="btn btn-secondary btn-sm">
               {{ t('chatgpt.accounts.exportSelected', { n: store.selectedCount }) }}
@@ -199,9 +212,15 @@
                   <div v-if="acc.last_token_refresh_error_at" class="mt-1 text-xs text-amber-600 dark:text-amber-300">Token 错误 {{ formatDateTime(acc.last_token_refresh_error_at) }}</div>
                 </td>
                 <td class="table-td">
-                  <button @click="store.openEdit(acc)" class="btn btn-secondary btn-sm">
-                    {{ t('common.edit') }}
-                  </button>
+                  <div class="flex flex-wrap items-center gap-2">
+                    <button @click="store.refreshOne(acc.access_token)" :disabled="store.refreshing" class="btn btn-secondary btn-sm" title="刷新当前账号信息和额度">
+                      <span :class="store.isTokenRefreshing(acc.access_token) ? 'animate-spin' : ''">↻</span>
+                      {{ store.isTokenRefreshing(acc.access_token) ? '刷新中' : '刷新' }}
+                    </button>
+                    <button @click="store.openEdit(acc)" :disabled="store.refreshing" class="btn btn-secondary btn-sm">
+                      {{ t('common.edit') }}
+                    </button>
+                  </div>
                 </td>
               </tr>
               <tr v-if="store.filteredAccounts.length === 0 && !store.loading">

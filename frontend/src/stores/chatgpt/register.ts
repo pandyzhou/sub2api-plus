@@ -59,6 +59,8 @@ export const useChatGPTRegisterStore = defineStore('chatgptRegister', () => {
   const config = ref<RegisterConfig | null>(null)
   const loading = ref(false)
   const saving = ref(false)
+  const toggling = ref(false)
+  const resetting = ref(false)
   const error = ref<string | null>(null)
   const sseConnected = ref(false)
   const sseFallback = ref(false)
@@ -76,6 +78,8 @@ export const useChatGPTRegisterStore = defineStore('chatgptRegister', () => {
   let fallbackTimer: number | null = null
 
   const isRunning = computed(() => config.value?.enabled ?? false)
+  const actionBusy = computed(() => saving.value || toggling.value || resetting.value)
+  const formDisabled = computed(() => actionBusy.value || isRunning.value)
   const stats = computed(() => config.value?.stats ?? null)
   const recentLogs = computed(() => [...(config.value?.logs ?? [])].reverse().slice(0, 200))
 
@@ -186,24 +190,39 @@ export const useChatGPTRegisterStore = defineStore('chatgptRegister', () => {
   }
 
   async function toggle(): Promise<void> {
+    if (toggling.value) return
     error.value = null
+    toggling.value = true
     try {
+      if (config.value?.enabled) {
+        const data = await stopRegister()
+        config.value = data.register
+        syncFormFromConfig()
+        return
+      }
       await save()
-      const data = config.value?.enabled ? await stopRegister() : await startRegister()
+      const data = await startRegister()
       config.value = data.register
+      syncFormFromConfig()
     } catch (err) {
       error.value = err instanceof Error ? err.message : '操作注册机失败'
+    } finally {
+      toggling.value = false
     }
   }
 
   async function reset(): Promise<void> {
+    if (resetting.value || isRunning.value) return
     error.value = null
+    resetting.value = true
     try {
       const data = await resetRegister()
       config.value = data.register
       syncFormFromConfig()
     } catch (err) {
       error.value = err instanceof Error ? err.message : '重置注册机统计失败'
+    } finally {
+      resetting.value = false
     }
   }
 
@@ -265,6 +284,10 @@ export const useChatGPTRegisterStore = defineStore('chatgptRegister', () => {
     config,
     loading,
     saving,
+    toggling,
+    resetting,
+    actionBusy,
+    formDisabled,
     error,
     sseConnected,
     sseFallback,
