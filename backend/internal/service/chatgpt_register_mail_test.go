@@ -98,21 +98,21 @@ func TestChatGPTRegisterTLSProxyURLFallsBackToEnvironment(t *testing.T) {
 	origHTTP := os.Getenv("HTTP_PROXY")
 	origHTTPS := os.Getenv("HTTPS_PROXY")
 	origNoProxy := os.Getenv("NO_PROXY")
-	os.Setenv("HTTP_PROXY", "")
-	os.Setenv("HTTPS_PROXY", "http://127.0.0.1:7890")
-	os.Setenv("NO_PROXY", "")
+	_ = os.Setenv("HTTP_PROXY", "")
+	_ = os.Setenv("HTTPS_PROXY", "http://127.0.0.1:7890")
+	_ = os.Setenv("NO_PROXY", "")
 	defer func() {
-		os.Setenv("HTTP_PROXY", origHTTP)
-		os.Setenv("HTTPS_PROXY", origHTTPS)
-		os.Setenv("NO_PROXY", origNoProxy)
+		_ = os.Setenv("HTTP_PROXY", origHTTP)
+		_ = os.Setenv("HTTPS_PROXY", origHTTPS)
+		_ = os.Setenv("NO_PROXY", origNoProxy)
 	}()
 
 	got := chatGPTRegisterTLSProxyURL("")
 	if got != "http://127.0.0.1:7890" {
-		t.Fatalf("tls proxy fallback = %q, want env proxy", got)
+		t.Fatalf("tls proxy fallback = %q, want %q", got, "http://127.0.0.1:7890")
 	}
 	if got := chatGPTRegisterTLSProxyURL("http://127.0.0.1:8080"); got != "http://127.0.0.1:8080" {
-		t.Fatalf("explicit tls proxy = %q", got)
+		t.Fatalf("explicit tls proxy = %q, want %q", got, "http://127.0.0.1:8080")
 	}
 }
 

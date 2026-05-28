@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"net/http/cookiejar"
 	"net/url"
+	"os"
 	"strings"
 
 	fhttp "github.com/bogdanfinn/fhttp"
@@ -79,15 +80,14 @@ func chatGPTRegisterTLSProxyURL(proxyURL string) string {
 	if proxyURL = strings.TrimSpace(proxyURL); proxyURL != "" {
 		return proxyURL
 	}
-	req, err := http.NewRequest(http.MethodGet, strings.TrimRight(chatGPTRegisterAuthBase, "/"), nil)
-	if err != nil {
-		return ""
+	// Read proxy from environment directly (os.Getenv),
+	// ensuring environment variables set by tests are visible.
+	for _, env := range []string{"HTTPS_PROXY", "https_proxy", "HTTP_PROXY", "http_proxy"} {
+		if v := strings.TrimSpace(os.Getenv(env)); v != "" {
+			return v
+		}
 	}
-	u, err := http.ProxyFromEnvironment(req)
-	if err != nil || u == nil {
-		return ""
-	}
-	return u.String()
+	return ""
 }
 
 func (c *chatGPTRegisterOpenAIClient) close() {
