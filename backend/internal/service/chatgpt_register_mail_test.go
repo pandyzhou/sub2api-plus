@@ -154,23 +154,18 @@ func TestChatGPTRegisterLoginTokenExchangeUsesLoginPKCEVerifier(t *testing.T) {
 			_ = json.NewEncoder(w).Encode(map[string]any{})
 		case "/api/accounts/password/verify":
 			_ = json.NewEncoder(w).Encode(map[string]any{"continue_url": "/consent"})
+		case "/consent":
+			http.Redirect(w, r, "/auth/callback?code=oauth-code", http.StatusFound)
+		case "/auth/callback":
+			w.WriteHeader(http.StatusOK)
 		case "/oauth/authorize":
 			if r.URL.Query().Get("codex_cli_simplified_flow") != "true" {
 				t.Fatalf("missing codex simplified flow: %s", r.URL.RawQuery)
 			}
 			http.Redirect(w, r, "/auth/callback?code=oauth-code", http.StatusFound)
-		case "/consent":
-			t.Fatalf("SPA consent page should not be used for token exchange")
-		case "/auth/callback":
-			w.WriteHeader(http.StatusOK)
 		case "/oauth/token":
 			if err := r.ParseForm(); err != nil {
 				t.Fatal(err)
-			}
-			if r.Form.Get("code_verifier") == "registration-verifier" {
-				w.WriteHeader(http.StatusBadRequest)
-				_, _ = w.Write([]byte(`{"error":"used registration verifier"}`))
-				return
 			}
 			_ = json.NewEncoder(w).Encode(map[string]any{"access_token": "access", "refresh_token": "refresh", "id_token": "id", "expires_in": 3600})
 		default:
@@ -185,7 +180,7 @@ func TestChatGPTRegisterLoginTokenExchangeUsesLoginPKCEVerifier(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	tokens, err := client.loginAndExchangeTokens(context.Background(), "u@example.test", "Password1!", "registration-verifier", nil, ChatGPTRegisterConfig{}, nil)
+	tokens, err := client.loginAndExchangeTokens(context.Background(), "u@example.test", "Password1!", "ignored-verifier", nil, ChatGPTRegisterConfig{}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -319,7 +319,7 @@ func (c *chatGPTRegisterOpenAIClient) loginAndExchangeTokens(ctx context.Context
 	}
 	login.setDeviceCookies()
 
-	_, challenge, state, nonce := chatGPTRegisterGeneratePKCE()
+	loginVerifier, challenge, state, nonce := chatGPTRegisterGeneratePKCE()
 	params := url.Values{"issuer": {chatGPTRegisterAuthBase}, "client_id": {chatGPTRegisterPlatformOAuthClientID}, "audience": {chatGPTRegisterPlatformOAuthAudience}, "redirect_uri": {chatGPTRegisterPlatformRedirectURI()}, "device_id": {login.deviceID}, "screen_hint": {"login_or_signup"}, "max_age": {"0"}, "login_hint": {email}, "scope": {"openid profile email offline_access"}, "response_type": {"code"}, "response_mode": {"query"}, "state": {state}, "nonce": {nonce}, "code_challenge": {challenge}, "code_challenge_method": {"S256"}, "auth0Client": {chatGPTRegisterPlatformAuth0Client}}
 	req, _ := http.NewRequestWithContext(ctx, http.MethodGet, strings.TrimRight(chatGPTRegisterAuthBase, "/")+"/api/accounts/authorize?"+params.Encode(), nil)
 	for k, v := range chatGPTRegisterNavigateHeaders(strings.TrimRight(chatGPTRegisterPlatformBase, "/")+"/") {
@@ -373,7 +373,41 @@ func (c *chatGPTRegisterOpenAIClient) loginAndExchangeTokens(ctx context.Context
 		}
 	}
 
-	// Generate a fresh PKCE pair for the token exchange.
+	// After password verification, OpenAI returns a continue_url that
+	// either contains an OAuth code directly or is a redirect to one.
+	// If no continue_url was returned, fall back to the Codex OAuth flow.
+	code, extractErr := login.extractOAuthCodeFromContinueURL(ctx, continueURL)
+if extractErr == nil && code != "" {
+		// The code from continue_url is bound to the PKCE challenge we sent
+		// in the login platformAuthorize step. Use the matching verifier.
+		form := url.Values{"grant_type": {"authorization_code"}, "code": {code}, "redirect_uri": {chatGPTRegisterPlatformRedirectURI()}, "client_id": {chatGPTRegisterPlatformOAuthClientID}, "code_verifier": {loginVerifier}}
+		req, err := http.NewRequestWithContext(ctx, http.MethodPost, strings.TrimRight(chatGPTRegisterAuthBase, "/")+"/oauth/token", strings.NewReader(form.Encode()))
+		if err != nil {
+			return nil, err
+		}
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		resp, body, err := login.tlsDo(req)
+		if err != nil {
+			return nil, err
+		}
+		if resp.StatusCode != 200 {
+			return nil, fmt.Errorf("oauth_token_http_%d: %s", resp.StatusCode, truncateString(string(body), 300))
+		}
+		var data registerTokens
+		var raw map[string]any
+		if err := json.Unmarshal(body, &raw); err != nil {
+			return nil, err
+		}
+		data.AccessToken = strings.TrimSpace(fmt.Sprint(raw["access_token"]))
+		data.RefreshToken = strings.TrimSpace(fmt.Sprint(raw["refresh_token"]))
+		data.IDToken = strings.TrimSpace(fmt.Sprint(raw["id_token"]))
+		if data.AccessToken == "" || data.RefreshToken == "" || data.IDToken == "" {
+			return nil, fmt.Errorf("token exchange failed: empty tokens (access=%t refresh=%t id=%t)", data.AccessToken != "", data.RefreshToken != "", data.IDToken != "")
+		}
+		return &data, nil
+	}
+
+	// Fall back: try the Codex OAuth flow with the login's PKCE pair.
 	exchangeVerifier, err := openaioauth.GenerateCodeVerifier()
 	if err != nil {
 		return nil, err
