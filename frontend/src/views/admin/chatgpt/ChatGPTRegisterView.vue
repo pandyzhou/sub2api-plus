@@ -62,7 +62,7 @@
         </div>
       </section>
 
-      <div class="grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(360px,0.9fr)]">
+      <div class="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(360px,0.9fr)]">
         <div class="space-y-6">
           <section class="card">
             <div class="card-header">
@@ -254,7 +254,7 @@
           </section>
         </div>
 
-        <section class="card flex min-h-[30rem] flex-col overflow-hidden">
+        <section class="card flex h-[34rem] min-h-0 flex-col overflow-hidden xl:sticky xl:top-24 xl:h-[calc(100vh-8rem)]">
           <div class="card-header flex items-center justify-between gap-4">
             <div>
               <h2 class="text-lg font-semibold text-gray-900 dark:text-white">
@@ -276,7 +276,7 @@
             </div>
           </div>
 
-          <div ref="logPanelRef" class="flex-1 overflow-y-auto bg-gray-50 p-4 font-mono text-xs dark:bg-dark-900/70" @scroll="handleLogScroll">
+          <div ref="logPanelRef" class="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-gray-50 p-4 font-mono text-xs dark:bg-dark-900/70" @scroll="handleLogScroll">
             <div v-if="store.recentLogs.length === 0" class="flex h-full items-center justify-center rounded-xl border border-dashed border-gray-300 text-gray-500 dark:border-dark-700 dark:text-gray-400">
               {{ t('chatgpt.register.noLogs') }}
             </div>
