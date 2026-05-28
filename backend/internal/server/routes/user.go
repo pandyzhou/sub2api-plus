@@ -78,6 +78,25 @@ func RegisterUserRoutes(
 			channels.GET("/available", h.AvailableChannel.List)
 		}
 
+		// 图片生成
+		if h.UserImage != nil {
+			image := user.Group("/image")
+			{
+				image.POST("/generate", h.UserImage.Generate)
+				image.POST("/edit", h.UserImage.Edit)
+
+				// 图片会话管理
+				sessions := image.Group("/sessions")
+				{
+					sessions.GET("", h.UserImage.ListSessions)
+					sessions.GET("/:id", h.UserImage.GetSession)
+					sessions.POST("", h.UserImage.CreateSession)
+					sessions.DELETE("/:id", h.UserImage.DeleteSession)
+					sessions.DELETE("", h.UserImage.ClearSessions)
+				}
+			}
+		}
+
 		// 使用记录
 		usage := authenticated.Group("/usage")
 		{
