@@ -310,8 +310,11 @@ func TestChatGPTAccountPool_CreateListUpdateExportAndRefresh(t *testing.T) {
 	if len(zr.File) != 1 || !strings.Contains(zr.File[0].Name, "a-example.com") {
 		t.Fatalf("zip names = %s", zr.File[0].Name)
 	}
-	f, _ := zr.File[0].Open()
-	defer f.Close()
+	f, err := zr.File[0].Open()
+	if err != nil {
+		t.Fatalf("open zip entry: %v", err)
+	}
+	defer func() { _ = f.Close() }()
 	body, _ := io.ReadAll(f)
 	if !bytes.Contains(body, []byte("refresh-1")) {
 		t.Fatalf("zip json missing token: %s", string(body))

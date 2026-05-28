@@ -16,7 +16,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	fhttp "github.com/bogdanfinn/fhttp"
@@ -1166,5 +1165,3 @@ func ChatGPTAccountExportContentDisposition(format string, now time.Time) string
 	}
 	return mime.FormatMediaType("attachment", map[string]string{"filename": fmt.Sprintf("codex-accounts-%s.%s", now.Format("20060102-150405"), ext)})
 }
-
-var chatGPTPoolEventTokens sync.Map

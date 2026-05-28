@@ -154,9 +154,9 @@ func TestChatGPTRegisterLoginTokenExchangeUsesLoginPKCEVerifier(t *testing.T) {
 			_ = json.NewEncoder(w).Encode(map[string]any{})
 		case "/api/accounts/password/verify":
 			_ = json.NewEncoder(w).Encode(map[string]any{
-				"type": "token_exchange",
+				"type":         "token_exchange",
 				"continue_url": "http://unused.local/auth/callback?code=oauth-code",
-				"payload": map[string]any{"code": "oauth-code", "state": "state-1"},
+				"payload":      map[string]any{"code": "oauth-code", "state": "state-1"},
 			})
 		case "/oauth/token":
 			if err := r.ParseForm(); err != nil {

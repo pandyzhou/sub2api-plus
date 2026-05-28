@@ -160,7 +160,7 @@ func normalizeRegisterStringList[T ~string](in []T) chatGPTRegisterStringList {
 	return out
 }
 
-func chatGPTRegisterMailAPIBase(cfg ChatGPTRegisterConfig) string {
+func chatGPTRegisterMailAPIBase(cfg ChatGPTRegisterConfig) string { //nolint:unused
 	cfg = chatGPTRegisterNormalizeConfig(cfg)
 	base := strings.TrimSpace(cfg.MailAPIBase)
 	if base == "" && len(cfg.Mail.Providers) > 0 {
@@ -172,7 +172,7 @@ func chatGPTRegisterMailAPIBase(cfg ChatGPTRegisterConfig) string {
 	return strings.TrimRight(base, "/")
 }
 
-func chatGPTRegisterMailRequest(ctx context.Context, cfg ChatGPTRegisterConfig, method, path string, body *strings.Reader) (*http.Request, error) {
+func chatGPTRegisterMailRequest(ctx context.Context, cfg ChatGPTRegisterConfig, method, path string, body *strings.Reader) (*http.Request, error) { //nolint:unused
 	if body == nil {
 		body = strings.NewReader("")
 	}
@@ -563,7 +563,7 @@ func extractContent(item map[string]any) (string, string) {
 	if arr, ok := item["html"].([]any); ok {
 		var b strings.Builder
 		for _, v := range arr {
-			b.WriteString(fmt.Sprint(v))
+			_, _ = b.WriteString(fmt.Sprint(v))
 		}
 		html = b.String()
 	}
@@ -657,7 +657,7 @@ func mapAny(v any) map[string]any {
 	}
 	return nil
 }
-func listAny(v any) []any {
+func listAny(v any) []any { //nolint:unused
 	if a, ok := v.([]any); ok {
 		return a
 	}

@@ -532,7 +532,11 @@ func (s *ChatGPTRegisterService) createTempEmail(cfg ChatGPTRegisterConfig) (*te
 	return chatGPTRegisterCreateMailbox(context.Background(), cfg, "")
 }
 
-func (s *ChatGPTRegisterService) platformAuthorize(ctx context.Context, email, deviceID, codeChallenge, state, nonce, proxyURL string) error {
+// Public API methods for step-by-step registration control.
+// These are exported for potential external callers even though the
+// internal register flow uses the client methods directly.
+
+func (s *ChatGPTRegisterService) platformAuthorize(ctx context.Context, email, deviceID, codeChallenge, state, nonce, proxyURL string) error { //nolint:unused
 	client, err := newChatGPTRegisterOpenAIClient(proxyURL, deviceID)
 	if err != nil {
 		return err
@@ -541,7 +545,7 @@ func (s *ChatGPTRegisterService) platformAuthorize(ctx context.Context, email, d
 	return client.platformAuthorize(ctx, email, codeChallenge, state, nonce)
 }
 
-func (s *ChatGPTRegisterService) registerUser(ctx context.Context, email, password, deviceID, proxyURL string) error {
+func (s *ChatGPTRegisterService) registerUser(ctx context.Context, email, password, deviceID, proxyURL string) error { //nolint:unused
 	client, err := newChatGPTRegisterOpenAIClient(proxyURL, deviceID)
 	if err != nil {
 		return err
@@ -550,7 +554,7 @@ func (s *ChatGPTRegisterService) registerUser(ctx context.Context, email, passwo
 	return client.registerUser(ctx, email, password)
 }
 
-func (s *ChatGPTRegisterService) sendOTP(ctx context.Context, deviceID, proxyURL string) error {
+func (s *ChatGPTRegisterService) sendOTP(ctx context.Context, deviceID, proxyURL string) error { //nolint:unused
 	client, err := newChatGPTRegisterOpenAIClient(proxyURL, deviceID)
 	if err != nil {
 		return err
@@ -563,7 +567,7 @@ func (s *ChatGPTRegisterService) waitForOTPCode(ctx context.Context, mailbox *te
 	return chatGPTRegisterWaitForCode(ctx, cfg, mailbox)
 }
 
-func (s *ChatGPTRegisterService) validateOTP(ctx context.Context, code, deviceID, proxyURL string) error {
+func (s *ChatGPTRegisterService) validateOTP(ctx context.Context, code, deviceID, proxyURL string) error { //nolint:unused
 	client, err := newChatGPTRegisterOpenAIClient(proxyURL, deviceID)
 	if err != nil {
 		return err
@@ -572,7 +576,7 @@ func (s *ChatGPTRegisterService) validateOTP(ctx context.Context, code, deviceID
 	return client.validateOTP(ctx, code)
 }
 
-func (s *ChatGPTRegisterService) createAccountProfile(ctx context.Context, firstName, lastName, birthdate, deviceID, proxyURL string) error {
+func (s *ChatGPTRegisterService) createAccountProfile(ctx context.Context, firstName, lastName, birthdate, deviceID, proxyURL string) error { //nolint:unused
 	client, err := newChatGPTRegisterOpenAIClient(proxyURL, deviceID)
 	if err != nil {
 		return err
@@ -582,7 +586,7 @@ func (s *ChatGPTRegisterService) createAccountProfile(ctx context.Context, first
 	return client.createAccountProfile(ctx, name, birthdate)
 }
 
-func (s *ChatGPTRegisterService) exchangeTokens(ctx context.Context, email, password, codeVerifier, deviceID, proxyURL string) (*registerTokens, error) {
+func (s *ChatGPTRegisterService) exchangeTokens(ctx context.Context, email, password, codeVerifier, deviceID, proxyURL string) (*registerTokens, error) { //nolint:unused
 	client, err := newChatGPTRegisterOpenAIClient(proxyURL, deviceID)
 	if err != nil {
 		return nil, err

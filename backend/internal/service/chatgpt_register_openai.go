@@ -39,10 +39,10 @@ const (
 )
 
 type chatGPTRegisterOpenAIClient struct {
-	http       *http.Client
-	tlsClient  tlsclient.HttpClient
-	deviceID   string
-	proxyURL   string
+	http      *http.Client
+	tlsClient tlsclient.HttpClient
+	deviceID  string
+	proxyURL  string
 }
 
 func newChatGPTRegisterOpenAIClient(proxyURL, deviceID string) (*chatGPTRegisterOpenAIClient, error) {
@@ -176,7 +176,7 @@ func (c *chatGPTRegisterOpenAIClient) setDeviceCookies() {
 	}
 }
 
-func (c *chatGPTRegisterOpenAIClient) do(req *http.Request) (*http.Response, []byte, error) {
+func (c *chatGPTRegisterOpenAIClient) do(req *http.Request) (*http.Response, []byte, error) { //nolint:unused
 	resp, err := c.http.Do(req)
 	if err != nil {
 		return nil, nil, err
@@ -320,7 +320,7 @@ func (c *chatGPTRegisterOpenAIClient) loginAndExchangeTokens(ctx context.Context
 	loginVerifier, challenge, state, nonce := chatGPTRegisterGeneratePKCE()
 	params := url.Values{"issuer": {chatGPTRegisterAuthBase}, "client_id": {chatGPTRegisterPlatformOAuthClientID}, "audience": {chatGPTRegisterPlatformOAuthAudience}, "redirect_uri": {chatGPTRegisterPlatformRedirectURI()}, "device_id": {login.deviceID}, "screen_hint": {"login_or_signup"}, "max_age": {"0"}, "login_hint": {email}, "scope": {"openid profile email offline_access"}, "response_type": {"code"}, "response_mode": {"query"}, "state": {state}, "nonce": {nonce}, "code_challenge": {challenge}, "code_challenge_method": {"S256"}, "auth0Client": {chatGPTRegisterPlatformAuth0Client}}
 	req, _ := http.NewRequestWithContext(ctx, http.MethodGet, strings.TrimRight(chatGPTRegisterAuthBase, "/")+"/api/accounts/authorize?"+params.Encode(), nil)
-	for k, v := range chatGPTRegisterNavigateHeaders(strings.TrimRight(chatGPTRegisterPlatformBase, "/")+"/") {
+	for k, v := range chatGPTRegisterNavigateHeaders(strings.TrimRight(chatGPTRegisterPlatformBase, "/") + "/") {
 		req.Header.Set(k, v)
 	}
 	resp, body, err := login.tlsDo(req)
@@ -428,7 +428,7 @@ func oauthCodeFromURL(raw string) string {
 	return strings.TrimSpace(u.Query().Get("code"))
 }
 
-func chatGPTRegisterCodexAuthorizationURL(state, codeChallenge string) string {
+func chatGPTRegisterCodexAuthorizationURL(state, codeChallenge string) string { //nolint:unused
 	params := url.Values{}
 	params.Set("response_type", "code")
 	params.Set("client_id", openaioauth.ClientID)
