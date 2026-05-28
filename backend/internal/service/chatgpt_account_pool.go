@@ -18,6 +18,10 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	fhttp "github.com/bogdanfinn/fhttp"
+	tlsclient "github.com/bogdanfinn/tls-client"
+	tlsclientprofiles "github.com/bogdanfinn/tls-client/profiles"
 )
 
 const (
@@ -1008,6 +1012,38 @@ func NewChatGPTAccountPoolHTTPClient(client *http.Client) *ChatGPTAccountPoolHTT
 	return &ChatGPTAccountPoolHTTPClient{HTTPClient: client, BaseURL: chatGPTWebBaseURL, OAuthURL: chatGPTAccountPoolOAuthTokenURL, UserAgent: chatGPTWebDefaultUserAgent}
 }
 
+func (c *ChatGPTAccountPoolHTTPClient) tlsDo(req *http.Request) (*http.Response, []byte, error) {
+	proxyURL := chatGPTRegisterTLSProxyURL("")
+	opts := []tlsclient.HttpClientOption{
+		tlsclient.WithTimeoutSeconds(60),
+		tlsclient.WithClientProfile(tlsclientprofiles.Chrome_144),
+	}
+	if proxyURL != "" {
+		opts = append(opts, tlsclient.WithProxyUrl(proxyURL))
+	}
+	cli, err := tlsclient.NewHttpClient(tlsclient.NewNoopLogger(), opts...)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	fReq, err := fhttp.NewRequestWithContext(req.Context(), req.Method, req.URL.String(), req.Body)
+	if err != nil {
+		return nil, nil, err
+	}
+	for k, vals := range req.Header {
+		for _, v := range vals {
+			fReq.Header.Add(k, v)
+		}
+	}
+	fResp, err := cli.Do(fReq)
+	if err != nil {
+		return nil, nil, err
+	}
+	defer func() { _ = fResp.Body.Close() }()
+	data, _ := io.ReadAll(io.LimitReader(fResp.Body, 4<<20))
+	return &http.Response{StatusCode: fResp.StatusCode, Header: http.Header(fResp.Header), Body: io.NopCloser(bytes.NewReader(data))}, data, nil
+}
+
 func (c *ChatGPTAccountPoolHTTPClient) RefreshAccessToken(ctx context.Context, refreshToken string) (*ChatGPTAccountPoolTokenData, error) {
 	form := url.Values{}
 	form.Set("grant_type", "refresh_token")
@@ -1093,12 +1129,10 @@ func (c *ChatGPTAccountPoolHTTPClient) doJSON(ctx context.Context, method, path,
 	}
 	req.Header.Set("X-OpenAI-Target-Path", targetPath)
 	req.Header.Set("X-OpenAI-Target-Route", targetPath)
-	resp, err := c.HTTPClient.Do(req)
+	resp, data, err := c.tlsDo(req)
 	if err != nil {
 		return nil, err
 	}
-	defer func() { _ = resp.Body.Close() }()
-	data, _ := io.ReadAll(io.LimitReader(resp.Body, 4<<20))
 	if resp.StatusCode == http.StatusUnauthorized {
 		return nil, ErrChatGPTAccountPoolInvalidAccessToken
 	}

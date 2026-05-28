@@ -7,6 +7,8 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"io"
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
@@ -186,6 +188,29 @@ func (r *chatGPTPoolRemoteStub) RefreshAccessToken(_ context.Context, refreshTok
 }
 func (r *chatGPTPoolRemoteStub) FetchRemoteInfo(_ context.Context, accessToken string, account *Account) (*ChatGPTAccountPoolRemoteInfo, error) {
 	return r.info, nil
+}
+
+func TestChatGPTAccountPoolHTTPClientDoJSONUsesTLSClient(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/backend-api/me" {
+			t.Fatalf("unexpected path %s", r.URL.Path)
+		}
+		if r.Header.Get("Authorization") != "Bearer access-token" {
+			t.Fatalf("authorization header = %q", r.Header.Get("Authorization"))
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{"email": "u@example.test"})
+	}))
+	defer server.Close()
+
+	client := NewChatGPTAccountPoolHTTPClient(&http.Client{Transport: failingRoundTripper{}})
+	client.BaseURL = server.URL
+	out, err := client.doJSON(context.Background(), http.MethodGet, "/backend-api/me", "access-token", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if out["email"] != "u@example.test" {
+		t.Fatalf("email = %v", out["email"])
+	}
 }
 
 func TestChatGPTAccountPool_CreateListUpdateExportAndRefresh(t *testing.T) {
