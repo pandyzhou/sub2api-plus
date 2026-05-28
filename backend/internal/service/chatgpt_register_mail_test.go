@@ -6,6 +6,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -93,9 +94,18 @@ func TestChatGPTRegisterProxyHelperSupportsHTTPAndSocksErrorsUnsupported(t *test
 }
 
 func TestChatGPTRegisterTLSProxyURLFallsBackToEnvironment(t *testing.T) {
-	t.Setenv("HTTP_PROXY", "")
-	t.Setenv("HTTPS_PROXY", "http://127.0.0.1:7890")
-	t.Setenv("NO_PROXY", "")
+	// Save and restore env vars manually to avoid t.Setenv parallel-test issues.
+	origHTTP := os.Getenv("HTTP_PROXY")
+	origHTTPS := os.Getenv("HTTPS_PROXY")
+	origNoProxy := os.Getenv("NO_PROXY")
+	os.Setenv("HTTP_PROXY", "")
+	os.Setenv("HTTPS_PROXY", "http://127.0.0.1:7890")
+	os.Setenv("NO_PROXY", "")
+	defer func() {
+		os.Setenv("HTTP_PROXY", origHTTP)
+		os.Setenv("HTTPS_PROXY", origHTTPS)
+		os.Setenv("NO_PROXY", origNoProxy)
+	}()
 
 	got := chatGPTRegisterTLSProxyURL("")
 	if got != "http://127.0.0.1:7890" {
