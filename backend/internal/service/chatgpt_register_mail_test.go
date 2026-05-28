@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -105,6 +106,94 @@ func TestChatGPTRegisterTLSProxyURLFallsBackToEnvironment(t *testing.T) {
 	}
 }
 
+func TestChatGPTRegisterRegisterUserUsesTLSClient(t *testing.T) {
+	oldAuth, oldSentinel := chatGPTRegisterAuthBase, chatGPTRegisterSentinelBase
+	defer func() {
+		chatGPTRegisterAuthBase, chatGPTRegisterSentinelBase = oldAuth, oldSentinel
+	}()
+	var sawRegister bool
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/backend-api/sentinel/req":
+			_ = json.NewEncoder(w).Encode(map[string]any{"token": "sentinel-cookie"})
+		case "/api/accounts/user/register":
+			sawRegister = true
+			w.WriteHeader(http.StatusOK)
+		default:
+			t.Fatalf("unexpected path %s", r.URL.Path)
+		}
+	}))
+	defer server.Close()
+	chatGPTRegisterAuthBase = server.URL
+	chatGPTRegisterSentinelBase = server.URL
+	client, err := newChatGPTRegisterOpenAIClient("", "device-id")
+	if err != nil {
+		t.Fatal(err)
+	}
+	client.http.Transport = failingRoundTripper{}
+	if err := client.registerUser(context.Background(), "u@example.test", "Password1!"); err != nil {
+		t.Fatal(err)
+	}
+	if !sawRegister {
+		t.Fatal("register endpoint was not called")
+	}
+}
+
+func TestChatGPTRegisterLoginTokenExchangeUsesLoginPKCEVerifier(t *testing.T) {
+	oldAuth, oldPlatform, oldSentinel := chatGPTRegisterAuthBase, chatGPTRegisterPlatformBase, chatGPTRegisterSentinelBase
+	defer func() {
+		chatGPTRegisterAuthBase, chatGPTRegisterPlatformBase, chatGPTRegisterSentinelBase = oldAuth, oldPlatform, oldSentinel
+	}()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/api/accounts/authorize":
+			w.WriteHeader(http.StatusOK)
+		case "/backend-api/sentinel/req":
+			_ = json.NewEncoder(w).Encode(map[string]any{"token": "sentinel-cookie"})
+		case "/api/accounts/authorize/continue":
+			_ = json.NewEncoder(w).Encode(map[string]any{})
+		case "/api/accounts/password/verify":
+			_ = json.NewEncoder(w).Encode(map[string]any{"continue_url": "/consent"})
+		case "/oauth/authorize":
+			if r.URL.Query().Get("codex_cli_simplified_flow") != "true" {
+				t.Fatalf("missing codex simplified flow: %s", r.URL.RawQuery)
+			}
+			http.Redirect(w, r, "/auth/callback?code=oauth-code", http.StatusFound)
+		case "/consent":
+			t.Fatalf("SPA consent page should not be used for token exchange")
+		case "/auth/callback":
+			w.WriteHeader(http.StatusOK)
+		case "/oauth/token":
+			if err := r.ParseForm(); err != nil {
+				t.Fatal(err)
+			}
+			if r.Form.Get("code_verifier") == "registration-verifier" {
+				w.WriteHeader(http.StatusBadRequest)
+				_, _ = w.Write([]byte(`{"error":"used registration verifier"}`))
+				return
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"access_token": "access", "refresh_token": "refresh", "id_token": "id", "expires_in": 3600})
+		default:
+			t.Fatalf("unexpected path %s", r.URL.Path)
+		}
+	}))
+	defer server.Close()
+	chatGPTRegisterAuthBase = server.URL
+	chatGPTRegisterPlatformBase = server.URL
+	chatGPTRegisterSentinelBase = server.URL
+	client, err := newChatGPTRegisterOpenAIClient("", "device-id")
+	if err != nil {
+		t.Fatal(err)
+	}
+	tokens, err := client.loginAndExchangeTokens(context.Background(), "u@example.test", "Password1!", "registration-verifier", nil, ChatGPTRegisterConfig{}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if tokens.AccessToken != "access" || tokens.RefreshToken != "refresh" || tokens.IDToken != "id" {
+		t.Fatalf("tokens = %#v", tokens)
+	}
+}
+
 func TestChatGPTRegisterOpenAIHeadersAndSentinel(t *testing.T) {
 	oldAuth, oldPlatform, oldSentinel := chatGPTRegisterAuthBase, chatGPTRegisterPlatformBase, chatGPTRegisterSentinelBase
 	defer func() {
@@ -149,6 +238,12 @@ func TestChatGPTRegisterOpenAIHeadersAndSentinel(t *testing.T) {
 	if !sawAuth0 || !sawSentinel || !sawTrace {
 		t.Fatalf("headers seen auth0=%v sentinel=%v trace=%v", sawAuth0, sawSentinel, sawTrace)
 	}
+}
+
+type failingRoundTripper struct{}
+
+func (f failingRoundTripper) RoundTrip(*http.Request) (*http.Response, error) {
+	return nil, errors.New("standard http client should not be used")
 }
 
 type chatGPTRegisterAccountRepoStub struct{ accounts []Account }
