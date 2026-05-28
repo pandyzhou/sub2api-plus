@@ -447,32 +447,39 @@ func (s *ChatGPTRegisterService) registerOne(ctx context.Context, cfg ChatGPTReg
 		s.appendLog(fmt.Sprintf("platform authorize 失败: %v", err), "error")
 		return false
 	}
+	s.appendLog("platform authorize 成功", "info")
 	if err = registrar.registerUser(ctx, email, password); err != nil {
 		s.appendLog(fmt.Sprintf("注册用户失败: %v", err), "error")
 		return false
 	}
+	s.appendLog(fmt.Sprintf("注册用户成功: %s", email), "info")
 	if err = registrar.sendOTP(ctx); err != nil {
 		s.appendLog(fmt.Sprintf("发送验证码失败: %v", err), "error")
 		return false
 	}
+	s.appendLog("发送验证码成功，等待邮件验证码...", "info")
 	code, err := s.waitForOTPCode(ctx, mailbox, cfg)
 	if err != nil {
 		s.appendLog(fmt.Sprintf("获取验证码失败: %v", err), "error")
 		return false
 	}
+	s.appendLog(fmt.Sprintf("获取验证码成功: %s", code), "info")
 	if err = registrar.validateOTP(ctx, code); err != nil {
 		s.appendLog(fmt.Sprintf("验证码校验失败: %v", err), "error")
 		return false
 	}
+	s.appendLog("验证码校验成功", "info")
 	if err = registrar.createAccountProfile(ctx, firstName+" "+lastName, birthdate); err != nil {
 		s.appendLog(fmt.Sprintf("创建账号资料失败: %v", err), "error")
 		return false
 	}
+	s.appendLog(fmt.Sprintf("创建账号资料成功: %s", firstName+" "+lastName), "info")
 	tokens, err := registrar.loginAndExchangeTokens(ctx, email, password, codeVerifier, mailbox, cfg, s)
 	if err != nil {
 		s.appendLog(fmt.Sprintf("换 token 失败: %v", err), "error")
 		return false
 	}
+	s.appendLog("换 token 成功", "info")
 
 	// Step 9: Save account
 	err = s.accounts.Create(ctx, &Account{
