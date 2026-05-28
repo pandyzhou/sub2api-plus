@@ -284,19 +284,19 @@ func (c *chatGPTRegisterOpenAIClient) sendOTP(ctx context.Context) error {
 	return nil
 }
 
-func (c *chatGPTRegisterOpenAIClient) validateOTP(ctx context.Context, code string) error {
+func (c *chatGPTRegisterOpenAIClient) validateOTP(ctx context.Context, code string) (map[string]any, error) {
 	h := chatGPTRegisterCommonHeaders(c.deviceID, strings.TrimRight(chatGPTRegisterAuthBase, "/")+"/email-verification")
-	_, resp, body, err := c.requestJSON(ctx, http.MethodPost, strings.TrimRight(chatGPTRegisterAuthBase, "/")+"/api/accounts/email-otp/validate", map[string]string{"code": code}, h, 200)
+	data, resp, body, err := c.requestJSON(ctx, http.MethodPost, strings.TrimRight(chatGPTRegisterAuthBase, "/")+"/api/accounts/email-otp/validate", map[string]string{"code": code}, h, 200)
 	if err == nil && resp != nil && resp.StatusCode == 200 {
-		return nil
+		return data, nil
 	}
 	token, tokErr := c.buildSentinelToken(ctx, "authorize_continue")
 	if tokErr != nil {
-		return fmt.Errorf("validate_otp_http_%d: %s; sentinel retry failed: %w", statusCode(resp), truncateString(string(body), 300), tokErr)
+		return nil, fmt.Errorf("validate_otp_http_%d: %s; sentinel retry failed: %w", statusCode(resp), truncateString(string(body), 300), tokErr)
 	}
 	h["OpenAI-Sentinel-Token"] = token
-	_, _, _, err = c.requestJSON(ctx, http.MethodPost, strings.TrimRight(chatGPTRegisterAuthBase, "/")+"/api/accounts/email-otp/validate", map[string]string{"code": code}, h, 200)
-	return err
+	data, _, _, err = c.requestJSON(ctx, http.MethodPost, strings.TrimRight(chatGPTRegisterAuthBase, "/")+"/api/accounts/email-otp/validate", map[string]string{"code": code}, h, 200)
+	return data, err
 }
 
 func (c *chatGPTRegisterOpenAIClient) createAccountProfile(ctx context.Context, name, birthdate string) error {
@@ -368,13 +368,25 @@ func (c *chatGPTRegisterOpenAIClient) loginAndExchangeTokens(ctx context.Context
 		if svc == nil {
 			return nil, fmt.Errorf("独立登录需要邮箱验证码但服务不可用")
 		}
-		code, err := svc.waitForOTPCode(ctx, mailbox, cfg)
+		otpCode, err := svc.waitForOTPCode(ctx, mailbox, cfg)
 		if err != nil {
 			return nil, err
 		}
-		svc.appendLog(fmt.Sprintf("登录验证码获取成功: %s", code), "success")
-		if err := login.validateOTP(ctx, code); err != nil {
+		svc.appendLog(fmt.Sprintf("登录验证码获取成功: %s", otpCode), "success")
+		otpResp, err := login.validateOTP(ctx, otpCode)
+		if err != nil {
 			return nil, err
+		}
+		// OTP 验证成功后，OpenAI 可能在响应中直接返回 OAuth code
+		if otpResp != nil {
+			if p := mapAny(otpResp["payload"]); p != nil {
+				if c := strings.TrimSpace(fmt.Sprint(p["code"])); c != "" {
+					payload = otpResp // 用 OTP 响应替换原始 payload
+				}
+			}
+			if u := strings.TrimSpace(fmt.Sprint(otpResp["continue_url"])); u != "" {
+				continueURL = u
+			}
 		}
 	}
 

@@ -497,7 +497,7 @@ func (s *ChatGPTRegisterService) registerOne(ctx context.Context, cfg ChatGPTReg
 		return false
 	}
 	s.appendLog(fmt.Sprintf("获取验证码成功: %s", code), "success")
-	if err = registrar.validateOTP(ctx, code); err != nil {
+	if _, err = registrar.validateOTP(ctx, code); err != nil {
 		s.appendLog(fmt.Sprintf("验证码校验失败: %v", err), "error")
 		return false
 	}
@@ -600,10 +600,10 @@ func (s *ChatGPTRegisterService) waitForOTPCode(ctx context.Context, mailbox *te
 	return chatGPTRegisterWaitForCode(ctx, cfg, mailbox)
 }
 
-func (s *ChatGPTRegisterService) validateOTP(ctx context.Context, code, deviceID, proxyURL string) error { //nolint:unused
+func (s *ChatGPTRegisterService) validateOTP(ctx context.Context, code, deviceID, proxyURL string) (map[string]any, error) { //nolint:unused
 	client, err := newChatGPTRegisterOpenAIClient(proxyURL, deviceID)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	defer client.close()
 	return client.validateOTP(ctx, code)
