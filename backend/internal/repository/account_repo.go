@@ -660,7 +660,10 @@ func (r *accountRepository) ListByPlatform(ctx context.Context, platform string)
 	accounts, err := r.client.Account.Query().
 		Where(
 			dbaccount.PlatformEQ(platform),
-			dbaccount.StatusEQ(service.StatusActive),
+			dbaccount.Or(
+				dbaccount.StatusEQ(service.StatusActive),
+				dbaccount.StatusEQ("正常"),
+			),
 		).
 		Order(dbent.Asc(dbaccount.FieldPriority)).
 		All(ctx)
