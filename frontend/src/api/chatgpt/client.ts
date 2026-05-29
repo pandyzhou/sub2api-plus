@@ -110,9 +110,11 @@ export async function deleteAccounts(tokens: string[]): Promise<ChatGPTAccountMu
  * Refresh accounts (fetch latest user info)
  */
 export async function refreshAccounts(tokens: string[]): Promise<ChatGPTAccountMutationResponse> {
-  const { data } = await apiClient.post(`${BASE}/accounts/refresh`, {
-    access_tokens: tokens,
-  })
+  const { data } = await apiClient.post(
+    `${BASE}/accounts/refresh`,
+    { access_tokens: tokens },
+    { timeout: 300000 },
+  )
   return data?.data || data
 }
 
