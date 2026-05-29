@@ -83,15 +83,16 @@ func (h *UserImageHandler) Generate(c *gin.Context) {
 		return
 	}
 
-	// 6. 选择可用账号
+	// 6. 选择可用账号（ChatGPT Web 模式）
 	sessionHash := uuid.NewString()
-	selection, _, err := h.gatewaySvc.SelectAccountWithSchedulerForImages(
+	selection, _, err := h.gatewaySvc.SelectAccountWithSchedulerForImagesBackendMode(
 		c.Request.Context(),
 		groupID,
 		sessionHash,
 		parsed.Model,
 		nil,
 		parsed.RequiredCapability,
+		service.OpenAIBackendModeChatGPTWeb,
 	)
 	if err != nil {
 		response.InternalError(c, "没有可用的图片生成账号: "+err.Error())
@@ -175,15 +176,16 @@ func (h *UserImageHandler) Edit(c *gin.Context) {
 		return
 	}
 
-	// 6. 选择可用账号
+	// 6. 选择可用账号（ChatGPT Web 模式）
 	sessionHash := uuid.NewString()
-	selection, _, err := h.gatewaySvc.SelectAccountWithSchedulerForImages(
+	selection, _, err := h.gatewaySvc.SelectAccountWithSchedulerForImagesBackendMode(
 		c.Request.Context(),
 		groupID,
 		sessionHash,
 		parsed.Model,
 		nil,
 		parsed.RequiredCapability,
+		service.OpenAIBackendModeChatGPTWeb,
 	)
 	if err != nil {
 		response.InternalError(c, "没有可用的图片生成账号: "+err.Error())
@@ -343,27 +345,23 @@ func (h *UserImageHandler) resolveGroupID(c *gin.Context, userID int64, requeste
 	if requested != nil && *requested > 0 {
 		return requested, nil
 	}
-
-	// 自动检测：从用户的可用分组中查找第一个有 OpenAI 账号的分组
 	if h.apiKeySvc == nil {
-		return nil, fmt.Errorf("未指定 group_id 且服务不可用")
-	}
-	groups, err := h.apiKeySvc.GetAvailableGroups(c.Request.Context(), userID)
-	if err != nil {
-		return nil, fmt.Errorf("获取用户可用分组失败: %w", err)
-	}
-	if len(groups) == 0 {
-		return nil, fmt.Errorf("用户没有可用的分组，请先联系管理员分配")
+		return nil, nil // 让调度器自行选择分组
 	}
 
-	// 选取第一个活跃分组
-	for _, g := range groups {
-		if g.ID > 0 {
-			gid := g.ID
-			return &gid, nil
+	// 先从用户订阅中找分组
+	groups, err := h.apiKeySvc.GetAvailableGroups(c.Request.Context(), userID)
+	if err == nil {
+		for _, g := range groups {
+			if g.ID > 0 {
+				gid := g.ID
+				return &gid, nil
+			}
 		}
 	}
-	return nil, fmt.Errorf("没有找到可用的分组")
+
+	// 用户没有订阅分组时（如 admin），不指定分组，让调度器自动选择
+	return nil, nil
 }
 
 // recordToSession 将生成请求记录到已有会话
