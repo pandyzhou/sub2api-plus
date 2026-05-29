@@ -12,6 +12,17 @@ export interface ImageGenerateParams {
   size?: string
   quality?: string
   response_format?: string
+  session_id?: string
+  title?: string
+}
+
+export interface ImageRecord {
+  id: string
+  prompt: string
+  model?: string
+  images?: readonly string[]
+  params?: unknown
+  created_at: string
 }
 
 export interface ImageSession {
@@ -19,6 +30,7 @@ export interface ImageSession {
   title: string
   created_at: string
   updated_at: string
+  records?: readonly ImageRecord[]
   images?: readonly ImageResult[]
 }
 

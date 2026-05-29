@@ -1,6 +1,6 @@
 <template>
   <AppLayout>
-    <div class="flex h-[calc(100vh-4rem)] overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm dark:border-dark-700 dark:bg-dark-900">
+    <div class="flex h-[calc(100dvh-6rem)] min-h-0 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm dark:border-dark-700 dark:bg-dark-900 md:h-[calc(100dvh-7rem)] lg:h-[calc(100dvh-8rem)]">
       <!-- ==================== Left: Session Sidebar ==================== -->
       <aside
         :class="[
@@ -39,10 +39,10 @@
               v-for="session in sessions"
               :key="session.id"
               :class="[
-                'group relative flex cursor-pointer items-center gap-2 rounded-lg px-3 py-2 transition-colors',
+                'group relative flex cursor-pointer items-center gap-2 rounded-lg border-l-2 px-3 py-2 transition-colors',
                 currentSessionId === session.id
-                  ? 'bg-primary-50 dark:bg-primary-900/20'
-                  : 'hover:bg-gray-100 dark:hover:bg-dark-700'
+                  ? 'border-primary-500 bg-primary-50 text-primary-700 dark:bg-primary-900/20'
+                  : 'border-transparent hover:border-gray-300 hover:bg-gray-100 dark:hover:bg-dark-700'
               ]"
               @click="handleSelectSession(session)"
             >
@@ -56,7 +56,7 @@
                   ]"
                 >{{ session.title || t('image.newSession') }}</p>
                 <p class="mt-0.5 text-[11px] text-gray-400 dark:text-gray-500">
-                  {{ formatTime(session.updated_at || session.created_at) }}
+                  {{ (session.records?.length || 0) }} 轮 · {{ formatTime(session.updated_at || session.created_at) }}
                 </p>
               </div>
               <button
@@ -197,60 +197,103 @@
         </Transition>
 
         <!-- ==================== Canvas ==================== -->
-        <div class="flex-1 overflow-y-auto">
+        <div ref="canvasRef" class="flex-1 overflow-y-auto overscroll-contain scroll-smooth bg-gray-50/45 dark:bg-dark-950/25">
           <!-- Empty State -->
-          <div v-if="results.length === 0 && !imageStore.generating" class="flex h-full flex-col items-center justify-center px-6">
-            <svg class="h-16 w-16 text-gray-200 dark:text-dark-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M3.75 21h16.5A2.25 2.25 0 0022.5 18.75V5.25A2.25 2.25 0 0020.25 3H3.75A2.25 2.25 0 001.5 5.25v13.5A2.25 2.25 0 003.75 21z" />
-            </svg>
-            <p class="mt-3 text-sm text-gray-400 dark:text-gray-500">{{ t('image.noImages') }}</p>
+          <div v-if="displayTurns.length === 0 && !imageStore.generating" class="flex h-full flex-col items-center justify-center px-6 text-center">
+            <div class="rounded-3xl bg-primary-50 p-5 text-primary-400 shadow-inner shadow-primary-500/10 dark:bg-primary-900/15 dark:text-primary-300">
+              <svg class="h-14 w-14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M3.75 21h16.5A2.25 2.25 0 0022.5 18.75V5.25A2.25 2.25 0 0020.25 3H3.75A2.25 2.25 0 001.5 5.25v13.5A2.25 2.25 0 003.75 21z" />
+              </svg>
+            </div>
+            <p class="mt-4 text-sm font-medium text-gray-500 dark:text-gray-400">{{ t('image.noImages') }}</p>
+            <p class="mt-1 max-w-md text-xs leading-5 text-gray-400 dark:text-gray-500">选择左侧历史会话会展示对应提示词；生成新图片后会像对话一样保留本轮输入和结果。</p>
+          </div>
+
+          <!-- Conversation Turns -->
+          <div v-if="displayTurns.length > 0" class="mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 py-5 sm:px-6 lg:px-8">
+            <section
+              v-for="(turn, turnIndex) in displayTurns"
+              :key="turn.id"
+              class="animate-fade-in"
+              :style="{ animationDelay: `${Math.min(turnIndex, 6) * 45}ms` }"
+            >
+              <!-- User prompt -->
+              <div class="flex justify-end">
+                <div class="max-w-[92%] rounded-2xl rounded-tr-md border border-primary-100 bg-primary-50 px-4 py-3 text-right shadow-sm dark:border-primary-800/60 dark:bg-primary-900/20 sm:max-w-[78%]">
+                  <div class="mb-1.5 flex flex-wrap justify-end gap-2 text-[11px] text-primary-500/80 dark:text-primary-300/80">
+                    <span>#{{ turnIndex + 1 }}</span>
+                    <span>{{ turn.model || imageStore.settings.model }}</span>
+                    <span v-if="turn.createdAt">{{ formatTime(turn.createdAt) }}</span>
+                  </div>
+                  <p class="whitespace-pre-wrap text-sm leading-6 text-gray-900 dark:text-gray-100 sm:text-[15px]">{{ turn.prompt }}</p>
+                </div>
+              </div>
+
+              <!-- Assistant results -->
+              <div class="mt-3 flex justify-start">
+                <div class="w-full rounded-2xl rounded-tl-md border border-gray-200 bg-white p-3 shadow-sm dark:border-dark-700 dark:bg-dark-900 sm:p-4">
+                  <div class="mb-3 flex items-center justify-between gap-3">
+                    <div class="flex items-center gap-2 text-xs font-medium text-gray-500 dark:text-gray-400">
+                      <span class="inline-flex h-6 w-6 items-center justify-center rounded-full bg-gray-100 text-primary-500 dark:bg-dark-800">
+                        <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09Z" /></svg>
+                      </span>
+                      <span>{{ turn.imageResults.length > 0 ? `${turn.imageResults.length} 张结果` : '提示词记录' }}</span>
+                    </div>
+                    <span class="text-[11px] text-gray-400 dark:text-gray-500">{{ imageStore.settings.size }} · {{ imageStore.settings.quality }}</span>
+                  </div>
+
+                  <div v-if="turn.imageResults.length > 0" class="grid gap-4" :class="gridClassForCount(turn.imageResults.length)">
+                    <div
+                      v-for="(img, imageIndex) in turn.imageResults"
+                      :key="`${turn.id}-${imageIndex}`"
+                      class="group relative overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm transition-shadow hover:shadow-md dark:border-dark-600 dark:bg-dark-800"
+                    >
+                      <div class="aspect-square cursor-pointer" @click="openTurnLightbox(turn.imageResults, imageIndex)">
+                        <img
+                          :src="getImageSrc(img)"
+                          :alt="img.revised_prompt || 'Generated image'"
+                          class="h-full w-full object-cover transition duration-200 group-hover:scale-[1.02] group-hover:brightness-95"
+                          loading="lazy"
+                        />
+                      </div>
+                      <!-- Hover overlay -->
+                      <div class="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/65 to-transparent p-3 opacity-0 transition-opacity group-hover:opacity-100">
+                        <div class="flex items-end justify-between gap-2">
+                          <p v-if="img.revised_prompt" class="line-clamp-2 text-[11px] leading-relaxed text-white/90">{{ img.revised_prompt }}</p>
+                          <span v-else class="text-[11px] text-white/70">结果 {{ imageIndex + 1 }}</span>
+                          <button
+                            class="shrink-0 rounded-lg bg-white/20 p-1.5 text-white backdrop-blur-sm hover:bg-white/30"
+                            :title="t('image.download')"
+                            @click.stop="downloadImage(img, imageIndex)"
+                          >
+                            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" /></svg>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div v-else class="rounded-xl border border-dashed border-gray-200 bg-gray-50 px-4 py-6 text-center text-sm text-gray-400 dark:border-dark-700 dark:bg-dark-800/60 dark:text-gray-500">
+                    这条历史记录只保存了提示词，未包含图片数据。重新发送或新生成后会在这里显示图片。
+                  </div>
+                </div>
+              </div>
+            </section>
           </div>
 
           <!-- Generating skeleton -->
-          <div v-if="imageStore.generating" class="p-4">
-            <div class="grid gap-4" :class="gridColsClass">
-              <div
-                v-for="i in imageStore.settings.n"
-                :key="`skel-${i}`"
-                class="aspect-square animate-pulse rounded-xl bg-gray-100 dark:bg-dark-800"
-              >
-                <div class="flex h-full items-center justify-center">
-                  <LoadingSpinner />
-                </div>
+          <div v-if="imageStore.generating" class="mx-auto w-full max-w-6xl px-4 pb-5 sm:px-6 lg:px-8">
+            <div class="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-dark-700 dark:bg-dark-900">
+              <div class="mb-3 flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+                <LoadingSpinner />
+                <span>{{ imageStore.editMode ? t('image.edit') : t('image.generate') }}中，结果会追加到当前会话</span>
               </div>
-            </div>
-          </div>
-
-          <!-- Image Grid -->
-          <div v-if="results.length > 0" class="p-4">
-            <div class="grid gap-4" :class="gridColsClass">
-              <div
-                v-for="(img, index) in results"
-                :key="index"
-                class="group relative overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm transition-shadow hover:shadow-md dark:border-dark-600 dark:bg-dark-800 animate-fade-in"
-                :style="{ animationDelay: `${index * 60}ms` }"
-              >
-                <div class="aspect-square cursor-pointer" @click="openLightbox(index)">
-                  <img
-                    :src="getImageSrc(img)"
-                    :alt="img.revised_prompt || 'Generated image'"
-                    class="h-full w-full object-cover"
-                    loading="lazy"
-                  />
-                </div>
-                <!-- Hover overlay -->
-                <div class="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 to-transparent p-3 opacity-0 transition-opacity group-hover:opacity-100">
-                  <div class="flex items-end justify-between gap-2">
-                    <p v-if="img.revised_prompt" class="line-clamp-2 text-[11px] leading-relaxed text-white/90">{{ img.revised_prompt }}</p>
-                    <button
-                      class="shrink-0 rounded-lg bg-white/20 p-1.5 text-white backdrop-blur-sm hover:bg-white/30"
-                      :title="t('image.download')"
-                      @click.stop="downloadImage(img, index)"
-                    >
-                      <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" /></svg>
-                    </button>
-                  </div>
-                </div>
+              <div class="grid gap-4" :class="gridColsClass">
+                <div
+                  v-for="i in imageStore.settings.n"
+                  :key="`skel-${i}`"
+                  class="aspect-square animate-pulse rounded-xl bg-gray-100 dark:bg-dark-800"
+                />
               </div>
             </div>
           </div>
@@ -339,10 +382,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, nextTick, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useImageStore } from '@/stores/image'
-import type { ImageSession, ImageResult } from '@/api/image'
+import type { ImageSession, ImageRecord, ImageResult } from '@/api/image'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import ImageLightbox from '@/components/image/ImageLightbox.vue'
@@ -356,6 +399,7 @@ const isDragging = ref(false)
 const editFile = ref<File | null>(null)
 const editPreview = ref<string | null>(null)
 const fileInput = ref<HTMLInputElement | null>(null)
+const canvasRef = ref<HTMLElement | null>(null)
 const mobileShowSessions = ref(false)
 const lightboxVisible = ref(false)
 const lightboxIndex = ref(0)
@@ -419,17 +463,72 @@ function setSettingValue(key: string, value: string) {
   else if (key === 'n') imageStore.settings.n = Number(value)
 }
 
+interface DisplayTurn {
+  id: string
+  prompt: string
+  model?: string
+  createdAt?: string
+  imageResults: ImageResult[]
+}
+
+function storedImageToResult(image: string): ImageResult | null {
+  const value = String(image || '').trim()
+  if (!value) return null
+  if (value.startsWith('data:')) return { url: value }
+  if (value.startsWith('http://') || value.startsWith('https://')) return { url: value }
+  return { b64_json: value }
+}
+
+function recordToDisplayTurn(record: ImageRecord): DisplayTurn {
+  return {
+    id: record.id,
+    prompt: record.prompt,
+    model: record.model,
+    createdAt: record.created_at,
+    imageResults: (record.images || []).flatMap((image) => {
+      const result = storedImageToResult(image)
+      return result ? [result] : []
+    })
+  }
+}
+
+function scrollCanvasToLatest(behavior: ScrollBehavior = 'smooth') {
+  void nextTick(() => {
+    const element = canvasRef.value
+    if (!element) return
+    element.scrollTo({ top: element.scrollHeight, behavior })
+  })
+}
+
 // ==================== Computed ====================
 const sessions = computed(() => imageStore.sessions)
 const results = computed(() => imageStore.results)
+const currentSession = computed(() => imageStore.currentSession)
 const currentSessionId = computed(() => imageStore.currentSession?.id || null)
 
-const gridColsClass = computed(() => {
-  const n = imageStore.settings.n
-  if (n <= 1) return 'grid-cols-1 max-w-xl mx-auto'
-  if (n === 2) return 'grid-cols-1 sm:grid-cols-2 max-w-2xl mx-auto'
-  return 'grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'
+const displayTurns = computed<DisplayTurn[]>(() => {
+  const session = currentSession.value
+  const records = session?.records || []
+  if (records.length > 0) return records.map(recordToDisplayTurn)
+  if (results.value.length > 0) {
+    return [{
+      id: session?.id || 'current-results',
+      prompt: session?.title || prompt.value || '当前生成',
+      model: imageStore.settings.model,
+      createdAt: session?.updated_at || session?.created_at,
+      imageResults: [...results.value]
+    }]
+  }
+  return []
 })
+
+function gridClassForCount(count: number) {
+  if (count <= 1) return 'grid-cols-1 max-w-xl'
+  if (count === 2) return 'grid-cols-1 sm:grid-cols-2 max-w-3xl'
+  return 'grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'
+}
+
+const gridColsClass = computed(() => gridClassForCount(imageStore.settings.n))
 
 // ==================== Methods ====================
 function getImageSrc(img: ImageResult): string {
@@ -454,11 +553,14 @@ async function handleNewSession() {
   const title = prompt.value.trim().slice(0, 50) || t('image.newSession')
   await imageStore.createAndSelectSession(title)
   mobileShowSessions.value = false
+  scrollCanvasToLatest('auto')
 }
 
-function handleSelectSession(session: ImageSession) {
+async function handleSelectSession(session: ImageSession) {
   imageStore.selectSession(session)
   mobileShowSessions.value = false
+  await imageStore.loadSession(session.id)
+  scrollCanvasToLatest('auto')
 }
 
 function handleDeleteSession(id: string) {
@@ -479,6 +581,7 @@ async function handleGenerate() {
   const trimmed = prompt.value.trim()
   if (!trimmed || imageStore.generating) return
   if (!imageStore.currentSession) await imageStore.createAndSelectSession(trimmed.slice(0, 50))
+  scrollCanvasToLatest('smooth')
   try {
     if (imageStore.editMode && editFile.value) {
       const fd = new FormData()
@@ -489,9 +592,12 @@ async function handleGenerate() {
       fd.append('size', imageStore.settings.size)
       fd.append('quality', imageStore.settings.quality)
       await imageStore.edit(fd)
+      clearEditImage()
     } else {
       await imageStore.generate(trimmed)
     }
+    prompt.value = ''
+    scrollCanvasToLatest('smooth')
   } catch (e) { console.error('Generation failed:', e) }
 }
 
@@ -522,6 +628,10 @@ function downloadImage(img: ImageResult, index: number) {
 }
 function downloadAll() { results.value.forEach((img, i) => setTimeout(() => downloadImage(img, i), i * 300)) }
 function openLightbox(index: number) { lightboxIndex.value = index; lightboxVisible.value = true }
+function openTurnLightbox(images: ImageResult[], index: number) {
+  imageStore.results = images
+  openLightbox(index)
+}
 
 // ==================== Lifecycle ====================
 onMounted(() => { imageStore.loadSessions() })
