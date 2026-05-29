@@ -75,6 +75,8 @@ func (h *UserImageHandler) Generate(c *gin.Context) {
 	}
 
 	// 5. 解析 OpenAI 图片请求
+	// 将用户端路径重写为标准 OpenAI 路径，以便 ParseOpenAIImagesRequest 正确解析
+	c.Request.URL.Path = "/v1/images/generations"
 	parsed, err := h.gatewaySvc.ParseOpenAIImagesRequest(c, body)
 	if err != nil {
 		response.BadRequest(c, "请求参数错误: "+err.Error())
@@ -165,6 +167,8 @@ func (h *UserImageHandler) Edit(c *gin.Context) {
 	}
 
 	// 5. 解析 OpenAI 图片请求（multipart）
+	// 将用户端路径重写为标准 OpenAI 路径
+	c.Request.URL.Path = "/v1/images/edits"
 	parsed, err := h.gatewaySvc.ParseOpenAIImagesRequest(c, body)
 	if err != nil {
 		response.BadRequest(c, "请求参数错误: "+err.Error())

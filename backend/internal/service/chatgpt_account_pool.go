@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"mime"
 	"net/http"
 	"net/url"
@@ -1017,6 +1018,11 @@ func NewChatGPTAccountPoolHTTPClient(client *http.Client) *ChatGPTAccountPoolHTT
 
 func (c *ChatGPTAccountPoolHTTPClient) tlsDo(req *http.Request) (*http.Response, []byte, error) {
 	proxyURL := chatGPTRegisterTLSProxyURL("")
+	if proxyURL != "" {
+		slog.Warn("chatgpt_pool_tls_do: using proxy", "proxy", proxyURL, "url", req.URL.String())
+	} else {
+		slog.Warn("chatgpt_pool_tls_do: NO PROXY, connecting directly", "url", req.URL.String())
+	}
 	opts := []tlsclient.HttpClientOption{
 		tlsclient.WithTimeoutSeconds(60),
 		tlsclient.WithClientProfile(tlsclientprofiles.Chrome_144),
