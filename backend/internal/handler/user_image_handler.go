@@ -83,7 +83,7 @@ func (h *UserImageHandler) Generate(c *gin.Context) {
 		return
 	}
 
-	// 6. 选择可用账号（ChatGPT Web 模式）
+	// 6. 选择可用账号（优先 ChatGPT Web 模式，无可用时回退到任意模式）
 	sessionHash := uuid.NewString()
 	selection, _, err := h.gatewaySvc.SelectAccountWithSchedulerForImagesBackendMode(
 		c.Request.Context(),
@@ -94,6 +94,18 @@ func (h *UserImageHandler) Generate(c *gin.Context) {
 		parsed.RequiredCapability,
 		service.OpenAIBackendModeChatGPTWeb,
 	)
+	if err != nil {
+		// ChatGPT Web 模式无可用账号，回退到任意模式
+		selection, _, err = h.gatewaySvc.SelectAccountWithSchedulerForImagesBackendMode(
+			c.Request.Context(),
+			groupID,
+			sessionHash,
+			parsed.Model,
+			nil,
+			parsed.RequiredCapability,
+			service.OpenAIBackendModeAny,
+		)
+	}
 	if err != nil {
 		response.InternalError(c, "没有可用的图片生成账号: "+err.Error())
 		return
@@ -176,7 +188,7 @@ func (h *UserImageHandler) Edit(c *gin.Context) {
 		return
 	}
 
-	// 6. 选择可用账号（ChatGPT Web 模式）
+	// 6. 选择可用账号（优先 ChatGPT Web 模式，无可用时回退到任意模式）
 	sessionHash := uuid.NewString()
 	selection, _, err := h.gatewaySvc.SelectAccountWithSchedulerForImagesBackendMode(
 		c.Request.Context(),
@@ -187,6 +199,18 @@ func (h *UserImageHandler) Edit(c *gin.Context) {
 		parsed.RequiredCapability,
 		service.OpenAIBackendModeChatGPTWeb,
 	)
+	if err != nil {
+		// ChatGPT Web 模式无可用账号，回退到任意模式
+		selection, _, err = h.gatewaySvc.SelectAccountWithSchedulerForImagesBackendMode(
+			c.Request.Context(),
+			groupID,
+			sessionHash,
+			parsed.Model,
+			nil,
+			parsed.RequiredCapability,
+			service.OpenAIBackendModeAny,
+		)
+	}
 	if err != nil {
 		response.InternalError(c, "没有可用的图片生成账号: "+err.Error())
 		return
