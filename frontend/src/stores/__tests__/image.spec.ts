@@ -26,30 +26,41 @@ describe('useImageStore image requests', () => {
     vi.clearAllMocks()
   })
 
-  it('omits auto model for text image generation so backend can apply its image default', async () => {
+  it('omits auto-valued options for text image generation so backend can apply image defaults', async () => {
     const store = useImageStore()
     store.settings.model = 'auto'
+    store.settings.size = 'auto'
+    store.settings.quality = 'auto'
 
     await store.createAndSelectSession('测试图片')
     await store.generate('一只猫娘在写代码')
 
     expect(generateImage).toHaveBeenCalledTimes(1)
-    expect(generateImage).toHaveBeenCalledWith(expect.not.objectContaining({ model: 'auto' }))
+    const submitted = vi.mocked(generateImage).mock.calls[0][0]
+    expect(submitted).not.toHaveProperty('model')
+    expect(submitted).not.toHaveProperty('size')
+    expect(submitted).not.toHaveProperty('quality')
   })
 
-  it('omits auto model for image edit multipart requests', async () => {
+  it('omits auto-valued options for image edit multipart requests', async () => {
     const store = useImageStore()
     store.settings.model = 'auto'
+    store.settings.size = 'auto'
+    store.settings.quality = 'auto'
 
     await store.createAndSelectSession('编辑图片')
     const formData = new FormData()
     formData.append('prompt', '改成赛博朋克风格')
     formData.append('model', store.settings.model)
+    formData.append('size', store.settings.size)
+    formData.append('quality', store.settings.quality)
 
     await store.edit(formData)
 
     expect(editImage).toHaveBeenCalledTimes(1)
     const submitted = vi.mocked(editImage).mock.calls[0][0]
     expect(submitted.get('model')).toBeNull()
+    expect(submitted.get('size')).toBeNull()
+    expect(submitted.get('quality')).toBeNull()
   })
 })

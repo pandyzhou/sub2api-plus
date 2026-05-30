@@ -44,10 +44,19 @@ function storedImagesToResults(images: readonly string[] | undefined): ImageResu
   })
 }
 
-function normalizeImageRequestModel(model: string): string | undefined {
-  const trimmed = String(model || '').trim()
+function normalizeImageRequestOption(value: string): string | undefined {
+  const trimmed = String(value || '').trim()
   if (!trimmed || trimmed.toLowerCase() === 'auto') return undefined
   return trimmed
+}
+
+function deleteAutoFormValue(formData: FormData, key: string, fallback: string) {
+  const normalized = normalizeImageRequestOption(String(formData.get(key) || fallback))
+  if (normalized) {
+    formData.set(key, normalized)
+  } else {
+    formData.delete(key)
+  }
 }
 
 export const useImageStore = defineStore('image', () => {
@@ -187,12 +196,15 @@ export const useImageStore = defineStore('image', () => {
   async function generate(prompt: string): Promise<ImageResult[]> {
     generating.value = true
     try {
+      const model = normalizeImageRequestOption(settings.model)
+      const size = normalizeImageRequestOption(settings.size)
+      const quality = normalizeImageRequestOption(settings.quality)
       const params: ImageGenerateParams = {
         prompt,
-        model: normalizeImageRequestModel(settings.model),
+        ...(model ? { model } : {}),
         n: settings.n,
-        size: settings.size,
-        quality: settings.quality,
+        ...(size ? { size } : {}),
+        ...(quality ? { quality } : {}),
         session_id: currentSession.value?.id,
         title: currentSession.value ? undefined : prompt.slice(0, 50)
       }
@@ -212,12 +224,9 @@ export const useImageStore = defineStore('image', () => {
       if (currentSession.value?.id && !formData.has('session_id')) {
         formData.append('session_id', currentSession.value.id)
       }
-      const normalizedModel = normalizeImageRequestModel(String(formData.get('model') || settings.model))
-      if (normalizedModel) {
-        formData.set('model', normalizedModel)
-      } else {
-        formData.delete('model')
-      }
+      deleteAutoFormValue(formData, 'model', settings.model)
+      deleteAutoFormValue(formData, 'size', settings.size)
+      deleteAutoFormValue(formData, 'quality', settings.quality)
       const prompt = String(formData.get('prompt') || '')
       const response = await imageApi.editImage(formData)
       const images: ImageResult[] = Array.isArray(response) ? response : (response?.data || response?.images || [])
