@@ -492,7 +492,7 @@ function recordToDisplayTurn(record: ImageRecord): DisplayTurn {
   }
 }
 
-function scrollCanvasToLatest(behavior: ScrollBehavior = 'smooth') {
+function scrollCanvasToLatest(behavior: 'auto' | 'smooth' = 'smooth') {
   void nextTick(() => {
     const element = canvasRef.value
     if (!element) return

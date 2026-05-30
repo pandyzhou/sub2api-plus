@@ -44,6 +44,12 @@ function storedImagesToResults(images: readonly string[] | undefined): ImageResu
   })
 }
 
+function normalizeImageRequestModel(model: string): string | undefined {
+  const trimmed = String(model || '').trim()
+  if (!trimmed || trimmed.toLowerCase() === 'auto') return undefined
+  return trimmed
+}
+
 export const useImageStore = defineStore('image', () => {
   // ==================== State ====================
 
@@ -183,7 +189,7 @@ export const useImageStore = defineStore('image', () => {
     try {
       const params: ImageGenerateParams = {
         prompt,
-        model: settings.model,
+        model: normalizeImageRequestModel(settings.model),
         n: settings.n,
         size: settings.size,
         quality: settings.quality,
@@ -205,6 +211,12 @@ export const useImageStore = defineStore('image', () => {
     try {
       if (currentSession.value?.id && !formData.has('session_id')) {
         formData.append('session_id', currentSession.value.id)
+      }
+      const normalizedModel = normalizeImageRequestModel(String(formData.get('model') || settings.model))
+      if (normalizedModel) {
+        formData.set('model', normalizedModel)
+      } else {
+        formData.delete('model')
       }
       const prompt = String(formData.get('prompt') || '')
       const response = await imageApi.editImage(formData)
