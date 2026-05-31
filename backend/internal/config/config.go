@@ -93,6 +93,15 @@ type Config struct {
 	Gemini                  GeminiConfig                  `mapstructure:"gemini"`
 	Update                  UpdateConfig                  `mapstructure:"update"`
 	Idempotency             IdempotencyConfig             `mapstructure:"idempotency"`
+	ExternalImage           ExternalImageConfig           `mapstructure:"external_image"`
+}
+
+// ExternalImageConfig 外部图片生成服务配置（如 chatgpt2api）
+type ExternalImageConfig struct {
+	BaseURL string `mapstructure:"base_url"` // 外部服务地址，如 http://localhost:26011
+	AuthKey string `mapstructure:"auth_key"` // 认证密钥
+	Timeout int    `mapstructure:"timeout"`  // 请求超时（秒），默认 300
+	Proxy   string `mapstructure:"proxy"`   // ChatGPT 图片生成代理，如 http://host.docker.internal:7890
 }
 
 type LogConfig struct {
