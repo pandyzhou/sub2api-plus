@@ -99,7 +99,14 @@ RUN apk add --no-cache \
     krb5-libs \
     libldap \
     libedit \
+    python3 \
+    py3-pip \
+    py3-cffi \
+    curl \
     && rm -rf /var/cache/apk/*
+
+# Install curl_cffi for browser-grade TLS fingerprinting (used by image generation)
+RUN pip3 install --break-system-packages --no-cache-dir curl_cffi==0.15.0 requests pybase64
 
 # Copy pg_dump and psql from the same postgres image used in docker-compose
 # This ensures version consistency between backup tools and the database server
@@ -118,6 +125,10 @@ WORKDIR /app
 COPY --from=backend-builder --chown=sub2api:sub2api /app/sub2api /app/sub2api
 COPY --from=backend-builder --chown=sub2api:sub2api /app/backend/resources /app/resources
 
+# Copy embedded Python script for image generation TLS proxy
+COPY --chown=sub2api:sub2api backend/internal/service/chatgpt_image_proxy.py /app/chatgpt_image_proxy.py
+COPY --chown=sub2api:sub2api backend/internal/service/pow.py /app/pow.py
+
 # Create data directory
 RUN mkdir -p /app/data && chown sub2api:sub2api /app/data
 
@@ -125,7 +136,7 @@ RUN mkdir -p /app/data && chown sub2api:sub2api /app/data
 COPY deploy/docker-entrypoint.sh /app/docker-entrypoint.sh
 RUN chmod +x /app/docker-entrypoint.sh
 
-# Expose port (can be overridden by SERVER_PORT env var)
+# Expose port
 EXPOSE 8080
 
 # Health check
