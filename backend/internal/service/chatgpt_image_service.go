@@ -87,7 +87,7 @@ func (s *ChatGPTImageService) Generate(ctx context.Context, input ChatGPTImageGe
 	slog.Info("chatgpt_image_generate_start", "prompt", input.Prompt, "model", model)
 
 	// 3. 调用 Python 脚本生成图片（使用 curl_cffi 绕过 Cloudflare）
-	scriptPath := "/app/internal/service/chatgpt_image_proxy.py"
+	scriptPath := "/app/chatgpt_image_proxy.py"
 	result, err := callPythonImageScript(ctx, scriptPath, accessToken, refreshToken, input.Prompt, model, s.proxyURL)
 	if err != nil {
 		s.poolService.MarkImageResult(rawToken, false)

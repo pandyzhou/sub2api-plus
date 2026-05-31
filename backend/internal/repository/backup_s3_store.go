@@ -7,7 +7,6 @@ import (
 	"io"
 	"time"
 
-	"github.com/aws/aws-sdk-go-v2/aws"
 	v4 "github.com/aws/aws-sdk-go-v2/aws/signer/v4"
 	awsconfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
@@ -48,7 +47,7 @@ func NewS3BackupStoreFactory() service.BackupObjectStoreFactory {
 				o.UsePathStyle = true
 			}
 			o.APIOptions = append(o.APIOptions, v4.SwapComputePayloadSHA256ForUnsignedPayloadMiddleware)
-			o.RequestChecksumCalculation = aws.RequestChecksumCalculationWhenRequired
+			// RequestChecksumCalculation 在新版本 AWS SDK 中已移除，不再需要设置
 		})
 
 		return &S3BackupStore{client: client, bucket: cfg.Bucket}, nil
