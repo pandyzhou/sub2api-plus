@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/rand"
-	"time"
 )
 
 // PoW (Proof of Work) implementation matching chatgpt2api's pow.py
@@ -65,8 +64,6 @@ var screenKeys = []string{
 
 // BuildPoWConfig creates the PoW configuration array
 func BuildPoWConfig(userAgent string) []interface{} {
-	rand.Seed(time.Now().UnixNano())
-	
 	navigatorKey := navigatorKeys[rand.Intn(len(navigatorKeys))]
 	screenKey := screenKeys[rand.Intn(len(screenKeys))]
 	

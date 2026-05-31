@@ -119,7 +119,7 @@ func (c *ChatGPTImageClient) getChatRequirements(ctx context.Context) (string, s
 	if err != nil {
 		return "", "", err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	
 	if resp.StatusCode != 200 {
 		body, _ := io.ReadAll(resp.Body)
@@ -190,7 +190,7 @@ func (c *ChatGPTImageClient) getConduitToken(ctx context.Context, prompt, model,
 	if err != nil {
 		return "", err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	
 	if resp.StatusCode != 200 {
 		body, _ := io.ReadAll(resp.Body)
@@ -282,7 +282,7 @@ func (c *ChatGPTImageClient) generateImage(ctx context.Context, prompt, model, s
 	if err != nil {
 		return "", err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	
 	if resp.StatusCode != 200 {
 		body, _ := io.ReadAll(resp.Body)

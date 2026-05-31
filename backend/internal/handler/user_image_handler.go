@@ -250,17 +250,3 @@ func (h *UserImageHandler) ClearSessions(c *gin.Context) {
 	response.Success(c, gin.H{"message": "所有会话已清空"})
 }
 
-// resolveGroupID 解析用户分组 ID
-func (h *UserImageHandler) resolveGroupID(c *gin.Context, userID int64, groupID *int64) (*int64, error) {
-	if groupID != nil {
-		return groupID, nil
-	}
-	if h.apiKeySvc == nil {
-		return nil, fmt.Errorf("API key service not available")
-	}
-	groups, err := h.apiKeySvc.GetAvailableGroups(c.Request.Context(), userID)
-	if err != nil || len(groups) == 0 {
-		return nil, fmt.Errorf("用户未分配分组")
-	}
-	return &groups[0].ID, nil
-}

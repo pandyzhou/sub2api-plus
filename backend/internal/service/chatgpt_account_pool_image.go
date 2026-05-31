@@ -228,14 +228,14 @@ func (s *ChatGPTAccountPoolService) GetImagePoolStats() map[string]any {
 	s.imageMu.Unlock()
 
 	return map[string]any{
-		"total_accounts":           total,
-		"available_accounts":       available,
-		"total_known_quota":        totalQuota,
-		"unknown_quota_accounts":   unknownQuota,
+		"total_accounts":            total,
+		"available_accounts":        available,
+		"total_known_quota":         totalQuota,
+		"unknown_quota_accounts":    unknownQuota,
 		"image_account_concurrency": cfg.ImageAccountConcurrency,
-		"total_inflight":           totalInflight,
-		"inflight_per_token":       inflightCopy,
-		"status_counts":            statusCounts,
+		"total_inflight":            totalInflight,
+		"inflight_per_token":        inflightCopy,
+		"status_counts":             statusCounts,
 	}
 }
 

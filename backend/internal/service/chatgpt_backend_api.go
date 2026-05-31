@@ -27,15 +27,15 @@ import (
 // ---------------------------------------------------------------------------
 
 const (
-	defaultChatGPTBaseURL     = "https://chatgpt.com"
-	defaultClientVersion      = "prod-5c63a9fb6f8bb7a7ef58a5c9afcab4914da46b6b"
-	defaultClientBuildNumber  = "14337326319"
-	defaultPowScript          = "https://chatgpt.com/backend-api/sentinel/sdk.js"
-	defaultUserAgent          = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36 Edg/146.0.0.0"
-	defaultImageModelSlug     = "gpt-image-2"
-	defaultImagePollTimeout   = 120 * time.Second
-	defaultImagePollInitial   = 10 * time.Second
-	defaultImagePollInterval  = 10 * time.Second
+	defaultChatGPTBaseURL    = "https://chatgpt.com"
+	defaultClientVersion     = "prod-5c63a9fb6f8bb7a7ef58a5c9afcab4914da46b6b"
+	defaultClientBuildNumber = "14337326319"
+	defaultPowScript         = "https://chatgpt.com/backend-api/sentinel/sdk.js"
+	defaultUserAgent         = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36 Edg/146.0.0.0"
+	defaultImageModelSlug    = "gpt-image-2"
+	defaultImagePollTimeout  = 120 * time.Second
+	defaultImagePollInitial  = 10 * time.Second
+	defaultImagePollInterval = 10 * time.Second
 )
 
 // ---------------------------------------------------------------------------
@@ -75,7 +75,7 @@ type ChatGPTBackendAPI struct {
 	deviceID      string
 	sessionID     string
 
-	httpClient      *req.Client
+	httpClient       *req.Client
 	powScriptSources []string
 	powDataBuild     string
 }
@@ -112,29 +112,29 @@ func NewChatGPTBackendAPI(accessToken string, proxyURL string) *ChatGPTBackendAP
 
 func (c *ChatGPTBackendAPI) baseHeaders() map[string]string {
 	return map[string]string{
-		"User-Agent":                c.userAgent,
-		"Origin":                    c.baseURL,
-		"Referer":                   c.baseURL + "/",
-		"Accept":                    "*/*",
-		"Accept-Language":           "zh-CN,zh;q=0.9,en;q=0.8,en-US;q=0.7",
-		"Cache-Control":             "no-cache",
-		"Pragma":                    "no-cache",
-		"Priority":                  "u=1, i",
-		"Oai-Device-Id":            c.deviceID,
-		"Oai-Language":              "en-US",
-		"Chatgpt-App-Version":       c.clientVersion,
-		"Sec-Ch-Ua":                 `"Microsoft Edge";v="143", "Chromium";v="143", "Not A(Brand";v="24"`,
-		"Sec-Ch-Ua-Arch":            `"x86"`,
-		"Sec-Ch-Ua-Bitness":         `"64"`,
-		"Sec-Ch-Ua-Full-Version":    `"143.0.3650.96"`,
+		"User-Agent":                  c.userAgent,
+		"Origin":                      c.baseURL,
+		"Referer":                     c.baseURL + "/",
+		"Accept":                      "*/*",
+		"Accept-Language":             "zh-CN,zh;q=0.9,en;q=0.8,en-US;q=0.7",
+		"Cache-Control":               "no-cache",
+		"Pragma":                      "no-cache",
+		"Priority":                    "u=1, i",
+		"Oai-Device-Id":               c.deviceID,
+		"Oai-Language":                "en-US",
+		"Chatgpt-App-Version":         c.clientVersion,
+		"Sec-Ch-Ua":                   `"Microsoft Edge";v="143", "Chromium";v="143", "Not A(Brand";v="24"`,
+		"Sec-Ch-Ua-Arch":              `"x86"`,
+		"Sec-Ch-Ua-Bitness":           `"64"`,
+		"Sec-Ch-Ua-Full-Version":      `"143.0.3650.96"`,
 		"Sec-Ch-Ua-Full-Version-List": `"Microsoft Edge";v="143.0.3650.96", "Chromium";v="143.0.7499.147", "Not A(Brand";v="24.0.0.0"`,
-		"Sec-Ch-Ua-Mobile":          "?0",
-		"Sec-Ch-Ua-Model":           `""`,
-		"Sec-Ch-Ua-Platform":        `"Windows"`,
-		"Sec-Ch-Ua-Platform-Version": `"19.0.0"`,
-		"Sec-Fetch-Dest":            "empty",
-		"Sec-Fetch-Mode":            "cors",
-		"Sec-Fetch-Site":            "same-origin",
+		"Sec-Ch-Ua-Mobile":            "?0",
+		"Sec-Ch-Ua-Model":             `""`,
+		"Sec-Ch-Ua-Platform":          `"Windows"`,
+		"Sec-Ch-Ua-Platform-Version":  `"19.0.0"`,
+		"Sec-Fetch-Dest":              "empty",
+		"Sec-Fetch-Mode":              "cors",
+		"Sec-Fetch-Site":              "same-origin",
 	}
 }
 
@@ -144,10 +144,8 @@ func (c *ChatGPTBackendAPI) apiHeaders(path string, extra map[string]string) map
 	h["Referer"] = c.baseURL + path
 	h["X-OpenAI-Target-Path"] = path
 	h["X-OpenAI-Target-Route"] = path
-	if extra != nil {
-		for k, v := range extra {
-			h[k] = v
-		}
+	for k, v := range extra {
+		h[k] = v
 	}
 	return h
 }
@@ -225,12 +223,12 @@ func (c *ChatGPTBackendAPI) GetSentinelToken(ctx context.Context) (*ChatRequirem
 	payloadBytes, _ := json.Marshal(payload)
 
 	sentinelHeaders := map[string]string{
-		"Content-Type":      "text/plain;charset=UTF-8",
-		"Referer":           "https://sentinel.openai.com/backend-api/sentinel/frame.html",
-		"Origin":            "https://sentinel.openai.com",
-		"User-Agent":        c.userAgent,
-		"Sec-Ch-Ua":         `"Microsoft Edge";v="143", "Chromium";v="143", "Not A(Brand";v="24"`,
-		"Sec-Ch-Ua-Mobile":  "?0",
+		"Content-Type":       "text/plain;charset=UTF-8",
+		"Referer":            "https://sentinel.openai.com/backend-api/sentinel/frame.html",
+		"Origin":             "https://sentinel.openai.com",
+		"User-Agent":         c.userAgent,
+		"Sec-Ch-Ua":          `"Microsoft Edge";v="143", "Chromium";v="143", "Not A(Brand";v="24"`,
+		"Sec-Ch-Ua-Mobile":   "?0",
 		"Sec-Ch-Ua-Platform": `"Windows"`,
 	}
 
@@ -290,8 +288,8 @@ func (c *ChatGPTBackendAPI) GetConduitToken(ctx context.Context, prompt string, 
 			"author":  map[string]any{"role": "user"},
 			"content": map[string]any{"content_type": "text", "parts": []string{prompt}},
 		},
-		"supports_buffering":   true,
-		"supported_encodings":  []string{"v1"},
+		"supports_buffering":     true,
+		"supported_encodings":    []string{"v1"},
 		"client_contextual_info": map[string]any{"app_name": "chatgpt.com"},
 	}
 
@@ -336,10 +334,10 @@ func (c *ChatGPTBackendAPI) StartImageGeneration(ctx context.Context, prompt str
 		"action": "next",
 		"messages": []any{
 			map[string]any{
-				"id":         uuid.NewString(),
-				"author":     map[string]any{"role": "user"},
+				"id":          uuid.NewString(),
+				"author":      map[string]any{"role": "user"},
 				"create_time": float64(time.Now().Unix()),
-				"content":    map[string]any{"content_type": "text", "parts": []string{prompt}},
+				"content":     map[string]any{"content_type": "text", "parts": []string{prompt}},
 				"metadata": map[string]any{
 					"developer_mode_connector_ids": []any{},
 					"selected_github_repos":        []any{},
@@ -349,16 +347,16 @@ func (c *ChatGPTBackendAPI) StartImageGeneration(ctx context.Context, prompt str
 				},
 			},
 		},
-		"parent_message_id":    uuid.NewString(),
-		"model":                c.imageModelSlug(model),
-		"client_prepare_state": "sent",
-		"timezone_offset_min":  -480,
-		"timezone":             "Asia/Shanghai",
-		"conversation_mode":    map[string]any{"kind": "primary_assistant"},
+		"parent_message_id":        uuid.NewString(),
+		"model":                    c.imageModelSlug(model),
+		"client_prepare_state":     "sent",
+		"timezone_offset_min":      -480,
+		"timezone":                 "Asia/Shanghai",
+		"conversation_mode":        map[string]any{"kind": "primary_assistant"},
 		"enable_message_followups": true,
-		"system_hints":            []string{"picture_v2"},
-		"supports_buffering":      true,
-		"supported_encodings":     []string{"v1"},
+		"system_hints":             []string{"picture_v2"},
+		"supports_buffering":       true,
+		"supported_encodings":      []string{"v1"},
 		"client_contextual_info": map[string]any{
 			"is_dark_mode":      false,
 			"time_since_loaded": 1200,
@@ -776,7 +774,9 @@ func (c *ChatGPTBackendAPI) ResolveImageURLs(ctx context.Context, conversationID
 		}
 		if u != "" {
 			slog.Info("chatgpt_file_download_url_resolved", "file_id", fileID, "url_prefix", func() string {
-				if len(u) > 100 { return u[:100] }
+				if len(u) > 100 {
+					return u[:100]
+				}
 				return u
 			}())
 			urls = append(urls, u)
@@ -806,11 +806,11 @@ func (c *ChatGPTBackendAPI) ResolveImageURLs(ctx context.Context, conversationID
 
 func (c *ChatGPTBackendAPI) imageHeaders(path string, reqs *ChatRequirements, conduitToken string, accept string) map[string]string {
 	extra := map[string]string{
-		"Content-Type":           "application/json",
-		"Accept":                 accept,
-		"Authorization":          "Bearer " + c.accessToken,
-		"X-OpenAI-Target-Path":   path,
-		"X-OpenAI-Target-Route":  path,
+		"Content-Type":          "application/json",
+		"Accept":                accept,
+		"Authorization":         "Bearer " + c.accessToken,
+		"X-OpenAI-Target-Path":  path,
+		"X-OpenAI-Target-Route": path,
 	}
 	if reqs != nil {
 		if reqs.Token != "" {
@@ -877,13 +877,6 @@ func parseChatGPTBackendPowResources(html string) ([]string, string) {
 		}
 	}
 	return sources, dataBuild
-}
-
-func buildBackendLegacyRequirementsToken(userAgent string, scriptSources []string, dataBuild string) string {
-	seed := fmt.Sprintf("%f", rand.Float64())
-	config := buildBackendPowConfig(userAgent, scriptSources, dataBuild)
-	answer, _ := backendPowGenerate(seed, "0fffff", config, 500000)
-	return "gAAAAAC" + answer
 }
 
 func buildBackendProofToken(seed, difficulty, userAgent string, scriptSources []string, dataBuild string) (string, error) {
