@@ -17,6 +17,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	fhttp "github.com/bogdanfinn/fhttp"
@@ -68,13 +69,20 @@ type ChatGPTAccountPoolRemoteClient interface {
 }
 
 type ChatGPTAccountPoolService struct {
-	accounts AccountRepository
-	settings SettingRepository
-	remote   ChatGPTAccountPoolRemoteClient
+	accounts      AccountRepository
+	settings      SettingRepository
+	remote        ChatGPTAccountPoolRemoteClient
+	imageMu       sync.Mutex
+	imageCond     *sync.Cond
+	imageInflight map[string]int
+	imageIndex    int
 }
 
 func NewChatGPTAccountPoolService(accounts AccountRepository, settings SettingRepository) *ChatGPTAccountPoolService {
-	return &ChatGPTAccountPoolService{accounts: accounts, settings: settings, remote: NewChatGPTAccountPoolHTTPClient(nil)}
+	svc := &ChatGPTAccountPoolService{accounts: accounts, settings: settings, remote: NewChatGPTAccountPoolHTTPClient(nil)}
+	svc.imageInflight = make(map[string]int)
+	svc.imageCond = sync.NewCond(&svc.imageMu)
+	return svc
 }
 
 func (s *ChatGPTAccountPoolService) SetRemoteClient(remote ChatGPTAccountPoolRemoteClient) {
