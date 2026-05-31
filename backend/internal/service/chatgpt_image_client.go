@@ -94,7 +94,7 @@ func (c *ChatGPTImageClient) buildHeaders() map[string]string {
 func (c *ChatGPTImageClient) getChatRequirements(ctx context.Context) (string, string, error) {
 	reqToken := BuildLegacyRequirementsToken(c.userAgent)
 
-	payload := map[string]interface{}{
+	payload := map[string]any{
 		"p": reqToken,
 	}
 
@@ -126,7 +126,7 @@ func (c *ChatGPTImageClient) getChatRequirements(ctx context.Context) (string, s
 		return "", "", fmt.Errorf("chat-requirements failed: %d %s", resp.StatusCode, string(body))
 	}
 
-	var result map[string]interface{}
+	var result map[string]any
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		return "", "", err
 	}
@@ -145,7 +145,7 @@ func (c *ChatGPTImageClient) getChatRequirements(ctx context.Context) (string, s
 
 // getConduitToken prepares the conversation
 func (c *ChatGPTImageClient) getConduitToken(ctx context.Context, prompt, model, sentinelToken, proofToken string) (string, error) {
-	payload := map[string]interface{}{
+	payload := map[string]any{
 		"action":                "next",
 		"fork_from_shared_post": false,
 		"parent_message_id":     uuid.New().String(),
@@ -155,10 +155,10 @@ func (c *ChatGPTImageClient) getConduitToken(ctx context.Context, prompt, model,
 		"timezone":              "Asia/Shanghai",
 		"conversation_mode":     map[string]string{"kind": "primary_assistant"},
 		"system_hints":          []string{"picture_v2"},
-		"partial_query": map[string]interface{}{
+		"partial_query": map[string]any{
 			"id":      uuid.New().String(),
 			"author":  map[string]string{"role": "user"},
-			"content": map[string]interface{}{"content_type": "text", "parts": []string{prompt}},
+			"content": map[string]any{"content_type": "text", "parts": []string{prompt}},
 		},
 		"supports_buffering":     true,
 		"supported_encodings":    []string{"v1"},
@@ -197,7 +197,7 @@ func (c *ChatGPTImageClient) getConduitToken(ctx context.Context, prompt, model,
 		return "", fmt.Errorf("conduit failed: %d %s", resp.StatusCode, string(body))
 	}
 
-	var result map[string]interface{}
+	var result map[string]any
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		return "", err
 	}
@@ -212,20 +212,20 @@ func (c *ChatGPTImageClient) getConduitToken(ctx context.Context, prompt, model,
 
 // generateImage starts the SSE conversation and extracts the image file ID
 func (c *ChatGPTImageClient) generateImage(ctx context.Context, prompt, model, sentinelToken, proofToken, conduitToken string) (string, error) {
-	payload := map[string]interface{}{
+	payload := map[string]any{
 		"action": "next",
-		"messages": []map[string]interface{}{
+		"messages": []map[string]any{
 			{
 				"id":          uuid.New().String(),
 				"author":      map[string]string{"role": "user"},
 				"create_time": float64(time.Now().Unix()),
-				"content":     map[string]interface{}{"content_type": "text", "parts": []string{prompt}},
-				"metadata": map[string]interface{}{
+				"content":     map[string]any{"content_type": "text", "parts": []string{prompt}},
+				"metadata": map[string]any{
 					"developer_mode_connector_ids": []string{},
 					"selected_github_repos":        []string{},
 					"selected_all_github_repos":    false,
 					"system_hints":                 []string{"picture_v2"},
-					"serialization_metadata":       map[string]interface{}{"custom_symbol_offsets": []interface{}{}},
+					"serialization_metadata":       map[string]any{"custom_symbol_offsets": []any{}},
 				},
 			},
 		},
@@ -239,7 +239,7 @@ func (c *ChatGPTImageClient) generateImage(ctx context.Context, prompt, model, s
 		"system_hints":             []string{"picture_v2"},
 		"supports_buffering":       true,
 		"supported_encodings":      []string{"v1"},
-		"client_contextual_info": map[string]interface{}{
+		"client_contextual_info": map[string]any{
 			"is_dark_mode":      false,
 			"time_since_loaded": 1200,
 			"page_height":       1072,
@@ -302,17 +302,17 @@ func (c *ChatGPTImageClient) generateImage(ctx context.Context, prompt, model, s
 			break
 		}
 
-		var event map[string]interface{}
+		var event map[string]any
 		if err := json.Unmarshal([]byte(data), &event); err != nil {
 			continue
 		}
 
 		// Extract file ID from image_asset_pointer
-		if msg, ok := event["message"].(map[string]interface{}); ok {
-			if content, ok := msg["content"].(map[string]interface{}); ok {
-				if parts, ok := content["parts"].([]interface{}); ok {
+		if msg, ok := event["message"].(map[string]any); ok {
+			if content, ok := msg["content"].(map[string]any); ok {
+				if parts, ok := content["parts"].([]any); ok {
 					for _, part := range parts {
-						if partMap, ok := part.(map[string]interface{}); ok {
+						if partMap, ok := part.(map[string]any); ok {
 							if partMap["content_type"] == "image_asset_pointer" {
 								if assetPointer, ok := partMap["asset_pointer"].(string); ok {
 									fileID := strings.TrimPrefix(assetPointer, "file-service://")

@@ -63,11 +63,11 @@ var screenKeys = []string{
 }
 
 // BuildPoWConfig creates the PoW configuration array
-func BuildPoWConfig(userAgent string) []interface{} {
+func BuildPoWConfig(userAgent string) []any {
 	navigatorKey := navigatorKeys[rand.Intn(len(navigatorKeys))]
 	screenKey := screenKeys[rand.Intn(len(screenKeys))]
-	
-	config := []interface{}{
+
+	config := []any{
 		navigatorKey,
 		screenKey,
 		0,
@@ -78,22 +78,22 @@ func BuildPoWConfig(userAgent string) []interface{} {
 		"zh-CN,zh;q=0.9,en;q=0.8,en-US;q=0.7",
 		0,
 	}
-	
+
 	return config
 }
 
 // GeneratePoW generates a proof-of-work solution
-func GeneratePoW(seed, difficulty string, config []interface{}) (string, bool) {
+func GeneratePoW(seed, difficulty string, config []any) (string, bool) {
 	// Simplified PoW - in production, this should match chatgpt2api's exact algorithm
 	// For now, we'll use a fallback approach
 	configJSON, _ := json.Marshal(config)
 	data := fmt.Sprintf("%s%s%s", seed, difficulty, string(configJSON))
 	hash := sha256.Sum256([]byte(data))
 	_ = base64.StdEncoding.EncodeToString(hash[:])
-	
+
 	// Fallback format matching chatgpt2api
 	fallback := "wQ8Lk5FbGpA2NcR9dShT6gYjU7VxZ4D" + base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf(`"%s"`, seed)))
-	
+
 	return fallback, false
 }
 
