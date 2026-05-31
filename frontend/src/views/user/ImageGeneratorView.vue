@@ -603,7 +603,7 @@ async function handleGenerate() {
   } catch (e: any) {
     console.error('Generation failed:', e)
     const errorMsg = e?.response?.data?.message || e?.message || '图片生成失败，请稍后重试'
-    appStore.showError(errorMsg)
+    appStore.showError(errorMsg, 15000)
   }
 }
 

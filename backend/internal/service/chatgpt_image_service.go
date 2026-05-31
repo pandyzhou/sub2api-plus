@@ -202,12 +202,16 @@ func callPythonImageScript(ctx context.Context, scriptPath, accessToken, refresh
 	// Call Python script
 	cmd := exec.CommandContext(ctx, "python3", scriptPath)
 	cmd.Stdin = bytes.NewReader(inputJSON)
-	
+
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 
 	if err := cmd.Run(); err != nil {
+		var result pythonImageResult
+		if parseErr := json.Unmarshal(stdout.Bytes(), &result); parseErr == nil && result.Error != "" {
+			return nil, fmt.Errorf("python script failed: %w: %s (stderr: %s)", err, result.Error, stderr.String())
+		}
 		return nil, fmt.Errorf("python script failed: %w (stderr: %s)", err, stderr.String())
 	}
 

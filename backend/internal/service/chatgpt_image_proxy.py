@@ -36,6 +36,60 @@ def log(msg):
     print(msg, file=sys.stderr, flush=True)
 
 
+def append_assistant_text(message, texts):
+    """Collect assistant text from ChatGPT conversation/SSE payloads."""
+    if not isinstance(message, dict):
+        return
+    author = message.get("author") or {}
+    if author.get("role") != "assistant":
+        return
+    content = message.get("content") or {}
+    parts = content.get("parts")
+    if isinstance(parts, list):
+        text = " ".join(part for part in parts if isinstance(part, str)).strip()
+        if text:
+            texts.append(text)
+    text = content.get("text")
+    if isinstance(text, str) and text.strip():
+        texts.append(text.strip())
+
+
+def extract_messages_from_event(event):
+    """Yield message objects from common ChatGPT SSE event shapes."""
+    if not isinstance(event, dict):
+        return
+    message = event.get("message")
+    if isinstance(message, dict):
+        yield message
+    for key in ("messages", "v"):
+        value = event.get(key)
+        if isinstance(value, list):
+            for item in value:
+                if isinstance(item, dict):
+                    if isinstance(item.get("message"), dict):
+                        yield item["message"]
+                    else:
+                        yield item
+
+
+def blocked_or_refused(text):
+    """Best-effort detection for a final safety/refusal text response."""
+    lowered = text.lower()
+    markers = (
+        "can't", "cannot", "unable", "not able", "won't", "can't help",
+        "policy", "safety", "sorry", "i’m sorry", "i'm sorry",
+        "无法", "不能", "不可以", "抱歉", "安全", "政策", "违规",
+    )
+    return any(marker in lowered for marker in markers)
+
+
+def compact_text(text, limit=240):
+    text = re.sub(r"\s+", " ", text).strip()
+    if len(text) <= limit:
+        return text
+    return text[:limit] + "..."
+
+
 # ── OpenAI OAuth Token Refresh ──────────────────────────────────────────────
 OPENAI_CLIENT_ID = "app_EMoamEEZ73f0CkXaXp7hrann"
 OPENAI_TOKEN_URL = "https://auth.openai.com/oauth/token"
@@ -458,6 +512,7 @@ def image_gen(access_token, proxy, prompt, model="gpt-image-2", refresh_token=""
     conversation_id = ""
     file_ids = []
     sediment_ids = []
+    assistant_texts = []
     event_count = 0
     
     for line in resp.iter_lines():
@@ -472,7 +527,15 @@ def image_gen(access_token, proxy, prompt, model="gpt-image-2", refresh_token=""
             break
         event_count += 1
         
-        # Extract conversation_id
+        # Extract conversation_id and assistant text
+        event = None
+        if data_str.startswith("{"):
+            try:
+                event = json.loads(data_str)
+                for message in extract_messages_from_event(event):
+                    append_assistant_text(message, assistant_texts)
+            except Exception:
+                event = None
         if not conversation_id and 'conversation_id' in data_str:
             match = re.search(r'"conversation_id"\s*:\s*"([^"]+)"', data_str)
             if match:
@@ -486,7 +549,12 @@ def image_gen(access_token, proxy, prompt, model="gpt-image-2", refresh_token=""
             if sid not in sediment_ids:
                 sediment_ids.append(sid)
 
-    log(f"[sse] conversation_id={conversation_id}, file_ids={file_ids}, sediment_ids={sediment_ids}")
+    log(f"[sse] conversation_id={conversation_id}, file_ids={file_ids}, sediment_ids={sediment_ids}, assistant_texts={len(assistant_texts)}")
+
+    if not (file_ids or sediment_ids) and assistant_texts:
+        latest_text = assistant_texts[-1]
+        if blocked_or_refused(latest_text):
+            raise RuntimeError(f"ChatGPT did not start image generation, likely due to prompt safety policy: {compact_text(latest_text)}")
 
     # 5. Poll conversation document for stable image IDs (matching basketikun/chatgpt2api)
     if conversation_id and not (file_ids or sediment_ids):
@@ -505,9 +573,11 @@ def image_gen(access_token, proxy, prompt, model="gpt-image-2", refresh_token=""
                 if poll_resp.status_code == 200:
                     conv_data = poll_resp.json()
                     mapping = conv_data.get("mapping", {})
+                    image_task_seen = False
                     
                     for msg_id, msg_data in mapping.items():
                         message = msg_data.get("message") or {}
+                        append_assistant_text(message, assistant_texts)
                         author = message.get("author") or {}
                         if author.get("role") != "tool":
                             continue
@@ -515,6 +585,7 @@ def image_gen(access_token, proxy, prompt, model="gpt-image-2", refresh_token=""
                         metadata = message.get("metadata") or {}
                         if metadata.get("async_task_type") != "image_gen":
                             continue
+                        image_task_seen = True
                         
                         content_str = json.dumps(message.get("content", {}))
                         for fid in re.findall(r'file-service://([A-Za-z0-9_-]+)', content_str):
@@ -528,13 +599,19 @@ def image_gen(access_token, proxy, prompt, model="gpt-image-2", refresh_token=""
                         log(f"[poll] found: file_ids={file_ids}, sediment_ids={sediment_ids}")
                         time.sleep(2)  # Settle time
                         break
+                    if not image_task_seen and assistant_texts and blocked_or_refused(assistant_texts[-1]):
+                        raise RuntimeError(f"ChatGPT did not start image generation, likely due to prompt safety policy: {compact_text(assistant_texts[-1])}")
                 
                 time.sleep(10)
             except Exception as e:
+                if "ChatGPT did not start image generation" in str(e):
+                    raise
                 log(f"[poll] attempt {attempt+1} error: {e}")
                 time.sleep(10)
 
     if not file_ids and not sediment_ids:
+        if assistant_texts:
+            raise RuntimeError(f"no image IDs found after SSE and polling ({event_count} events); assistant response: {compact_text(assistant_texts[-1])}")
         raise RuntimeError(f"no image IDs found after SSE and polling ({event_count} events)")
 
     # 6. Resolve IDs to download URLs
@@ -620,6 +697,7 @@ def main():
             resp["new_access_token"] = output["new_access_token"]
         print(json.dumps(resp))
     except Exception as e:
+        log(f"[error] {e}")
         output = {"success": False, "image_b64": "", "image_url": "", "error": str(e)}
         print(json.dumps(output))
         sys.exit(1)

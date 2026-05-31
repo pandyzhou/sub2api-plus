@@ -5,6 +5,8 @@
 
 import { apiClient } from './client'
 
+const IMAGE_REQUEST_TIMEOUT_MS = 600000
+
 export interface ImageGenerateParams {
   prompt: string
   model?: string
@@ -44,7 +46,7 @@ export interface ImageResult {
  * Generate images from text prompt
  */
 export async function generateImage(params: ImageGenerateParams): Promise<any> {
-  const { data } = await apiClient.post('/user/image/generate', params, { timeout: 120000 })
+  const { data } = await apiClient.post('/user/image/generate', params, { timeout: IMAGE_REQUEST_TIMEOUT_MS })
   return data?.data || data
 }
 
@@ -53,7 +55,7 @@ export async function generateImage(params: ImageGenerateParams): Promise<any> {
  */
 export async function editImage(formData: FormData): Promise<any> {
   const { data } = await apiClient.post('/user/image/edit', formData, {
-    timeout: 120000,
+    timeout: IMAGE_REQUEST_TIMEOUT_MS,
     headers: { 'Content-Type': 'multipart/form-data' }
   })
   return data?.data || data
