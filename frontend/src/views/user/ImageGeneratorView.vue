@@ -385,6 +385,7 @@
 import { ref, computed, nextTick, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useImageStore } from '@/stores/image'
+import { useAppStore } from '@/stores/app'
 import type { ImageSession, ImageRecord, ImageResult } from '@/api/image'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
@@ -392,6 +393,7 @@ import ImageLightbox from '@/components/image/ImageLightbox.vue'
 
 const { t } = useI18n()
 const imageStore = useImageStore()
+const appStore = useAppStore()
 
 // ==================== State ====================
 const prompt = ref('')
@@ -598,7 +600,11 @@ async function handleGenerate() {
     }
     prompt.value = ''
     scrollCanvasToLatest('smooth')
-  } catch (e) { console.error('Generation failed:', e) }
+  } catch (e: any) {
+    console.error('Generation failed:', e)
+    const errorMsg = e?.response?.data?.message || e?.message || '图片生成失败，请稍后重试'
+    appStore.showError(errorMsg)
+  }
 }
 
 function handleFileSelect(e: Event) {
