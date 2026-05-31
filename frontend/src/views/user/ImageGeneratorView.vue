@@ -534,8 +534,15 @@ const gridColsClass = computed(() => gridClassForCount(imageStore.settings.n))
 
 // ==================== Methods ====================
 function getImageSrc(img: ImageResult): string {
-  if (img.b64_json) return `data:image/png;base64,${img.b64_json}`
-  return img.url || ''
+  if (img.url) return img.url
+  if (img.b64_json) {
+    const value = img.b64_json.trim()
+    if (value.startsWith('/') || value.startsWith('http://') || value.startsWith('https://') || value.startsWith('data:')) {
+      return value
+    }
+    return `data:image/png;base64,${value}`
+  }
+  return ''
 }
 
 function formatTime(dateStr: string): string {

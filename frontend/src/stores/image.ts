@@ -37,7 +37,7 @@ function storedImagesToResults(images: readonly string[] | undefined): ImageResu
   return (images || []).flatMap((image): ImageResult[] => {
     const value = String(image || '').trim()
     if (!value) return []
-    if (value.startsWith('http://') || value.startsWith('https://') || value.startsWith('data:')) {
+    if (value.startsWith('http://') || value.startsWith('https://') || value.startsWith('data:') || value.startsWith('/')) {
       return [{ url: value }]
     }
     return [{ b64_json: value }]
