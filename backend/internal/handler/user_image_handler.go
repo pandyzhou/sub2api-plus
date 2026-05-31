@@ -249,4 +249,3 @@ func (h *UserImageHandler) ClearSessions(c *gin.Context) {
 	}
 	response.Success(c, gin.H{"message": "所有会话已清空"})
 }
-

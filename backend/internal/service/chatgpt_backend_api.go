@@ -2,11 +2,7 @@ package service
 
 import (
 	"bufio"
-	"bytes"
 	"context"
-	"crypto/sha3"
-	"encoding/base64"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -879,125 +875,6 @@ func parseChatGPTBackendPowResources(html string) ([]string, string) {
 	return sources, dataBuild
 }
 
-func buildBackendProofToken(seed, difficulty, userAgent string, scriptSources []string, dataBuild string) (string, error) {
-	config := buildBackendPowConfig(userAgent, scriptSources, dataBuild)
-	answer, solved := backendPowGenerate(seed, difficulty, config, 500000)
-	if !solved {
-		return "", fmt.Errorf("failed to solve proof token: difficulty=%s", difficulty)
-	}
-	return "gAAAAAB" + answer, nil
-}
-
-var (
-	backendNavigatorKeys = []string{
-		"registerProtocolHandler−function registerProtocolHandler() { [native code] }",
-		"storage−[object StorageManager]",
-		"locks−[object LockManager]",
-		"appCodeName−Mozilla",
-		"permissions−[object Permissions]",
-		"share−function share() { [native code] }",
-		"webdriver−false",
-		"managed−[object NavigatorManagedData]",
-		"canShare−function canShare() { [native code] }",
-		"vendor−Google Inc.",
-		"mediaDevices−[object MediaDevices]",
-		"vibrate−function vibrate() { [native code] }",
-		"storageBuckets−[object StorageBucketManager]",
-		"mediaCapabilities−[object MediaCapabilities]",
-		"cookieEnabled−true",
-		"virtualKeyboard−[object VirtualKeyboard]",
-		"product−Gecko",
-		"presentation−[object Presentation]",
-		"onLine−true",
-		"mimeTypes−[object MimeTypeArray]",
-		"credentials−[object CredentialsContainer]",
-		"serviceWorker−[object ServiceWorkerContainer]",
-		"keyboard−[object Keyboard]",
-		"gpu−[object GPU]",
-		"doNotTrack",
-		"serial−[object Serial]",
-		"pdfViewerEnabled−true",
-		"language−zh-CN",
-		"geolocation−[object Geolocation]",
-		"userAgentData−[object NavigatorUAData]",
-		"getUserMedia−function getUserMedia() { [native code] }",
-		"sendBeacon−function sendBeacon() { [native code] }",
-		"hardwareConcurrency−32",
-		"windowControlsOverlay−[object WindowControlsOverlay]",
-	}
-	backendDocumentKeys = []string{"_reactListeningo743lnnpvdg", "location"}
-	backendWindowKeys   = []string{
-		"0", "window", "self", "document", "name", "location",
-		"customElements", "history", "navigation", "innerWidth", "innerHeight",
-		"scrollX", "scrollY", "visualViewport", "screenX", "screenY",
-		"outerWidth", "outerHeight", "devicePixelRatio", "screen", "chrome",
-		"navigator", "onresize", "performance", "crypto", "indexedDB",
-		"sessionStorage", "localStorage", "scheduler", "alert", "atob",
-		"btoa", "fetch", "matchMedia", "postMessage", "queueMicrotask",
-		"requestAnimationFrame", "setInterval", "setTimeout", "caches",
-		"__NEXT_DATA__", "__BUILD_MANIFEST", "__NEXT_PRELOADREADY",
-	}
-	backendCores = []int{8, 16, 24, 32}
-)
-
-func buildBackendPowConfig(userAgent string, scriptSources []string, dataBuild string) []any {
-	scriptSource := defaultPowScript
-	if len(scriptSources) > 0 {
-		scriptSource = scriptSources[rand.Intn(len(scriptSources))]
-	}
-	return []any{
-		[]int{3000, 4000, 5000}[rand.Intn(3)],
-		time.Now().In(time.FixedZone("EST", -5*3600)).Format("Mon Jan 02 2006 15:04:05") + " GMT-0500 (Eastern Standard Time)",
-		4294705152,
-		0,
-		userAgent,
-		scriptSource,
-		dataBuild,
-		"en-US",
-		"en-US,es-US,en,es",
-		0,
-		backendNavigatorKeys[rand.Intn(len(backendNavigatorKeys))],
-		backendDocumentKeys[rand.Intn(len(backendDocumentKeys))],
-		backendWindowKeys[rand.Intn(len(backendWindowKeys))],
-		float64(time.Now().UnixNano()) / 1e6,
-		uuid.NewString(),
-		"",
-		backendCores[rand.Intn(len(backendCores))],
-		float64(time.Now().UnixMicro()) / 1e3,
-	}
-}
-
-// backendPowGenerate loops to find a nonce i such that
-// SHA3-512(seed + base64(json(config with i inserted))) has the first N bytes <= difficulty target.
-func backendPowGenerate(seed, difficulty string, config []any, limit int) (string, bool) {
-	target, err := hex.DecodeString(difficulty)
-	if err != nil || len(target) == 0 {
-		return "", false
-	}
-	diffLen := len(difficulty) / 2
-	seedBytes := []byte(seed)
-
-	part1Bytes, _ := json.Marshal(config[:3])
-	part2Bytes, _ := json.Marshal(config[4:9])
-	part3Bytes, _ := json.Marshal(config[10:])
-
-	// Build the static prefix/suffix with comma separators matching Python's approach
-	part1 := strings.TrimSuffix(string(part1Bytes), "]") + ","
-	part2 := "," + strings.TrimPrefix(strings.TrimSuffix(string(part2Bytes), "]"), "[") + ","
-	part3 := "," + strings.TrimPrefix(string(part3Bytes), "[")
-
-	for i := 0; i < limit; i++ {
-		finalJSON := part1 + fmt.Sprintf("%d", i) + part2 + fmt.Sprintf("%d", i>>1) + part3
-		encoded := []byte(base64.StdEncoding.EncodeToString([]byte(finalJSON)))
-		digest := sha3.Sum512(append(seedBytes, encoded...))
-		if bytes.Compare(digest[:diffLen], target) <= 0 {
-			return string(encoded), true
-		}
-	}
-	fallback := "wQ8Lk5FbGpA2NcR9dShT6gYjU7VxZ4D" + base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("%q", seed)))
-	return fallback, false
-}
-
 // ---------------------------------------------------------------------------
 // Utility functions
 // ---------------------------------------------------------------------------
@@ -1011,14 +888,6 @@ func mapString(m map[string]any, key string) string {
 		return ""
 	}
 	return strings.TrimSpace(fmt.Sprint(v))
-}
-
-func mapBool(m map[string]any, key string) bool {
-	if m == nil {
-		return false
-	}
-	v, ok := m[key].(bool)
-	return ok && v
 }
 
 func truncateBytes(b []byte, maxLen int) string {

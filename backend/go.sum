@@ -350,10 +350,10 @@ github.com/tam7t/hpkp v0.0.0-20160821193359-2b70b4024ed5 h1:YqAladjX7xpA6BM04leX
 github.com/tam7t/hpkp v0.0.0-20160821193359-2b70b4024ed5/go.mod h1:2JjD2zLQYH5HO74y5+aE3remJQvl6q4Sn6aWA2wD1Ng=
 github.com/testcontainers/testcontainers-go v0.36.0 h1:YpffyLuHtdp5EUsI5mT4sRw8GZhO/5ozyDT1xWGXt00=
 github.com/testcontainers/testcontainers-go v0.36.0/go.mod h1:yk73GVJ0KUZIHUtFna6MO7QS144qYpoY8lEEtU9Hed0=
-github.com/testcontainers/testcontainers-go/modules/postgres v0.35.0 h1:eEGx9kYzZb2cNhRbBrNOCL/YPOM7+RMJiy3bB+ie0/I=
-github.com/testcontainers/testcontainers-go/modules/postgres v0.35.0/go.mod h1:hfH71Mia/WWLBgMD2YctYcMlfsbnT0hflweL1dy8Q4s=
-github.com/testcontainers/testcontainers-go/modules/redis v0.35.0 h1:RBgVefU5j5IWapp3TNKqMTYX+M22OSjtuORjPd4+g08=
-github.com/testcontainers/testcontainers-go/modules/redis v0.35.0/go.mod h1:UgghVXQ0//D3MjC8X71Bpb/lUCChidjNCRILD+btqfU=
+github.com/testcontainers/testcontainers-go/modules/postgres v0.36.0 h1:xTGNNsOD9IIssH0dnAGNUH+SD9GYWyaP2t5xD2lg0as=
+github.com/testcontainers/testcontainers-go/modules/postgres v0.36.0/go.mod h1:WKS3MGq1lzbVibIRnL08TOaf5bKWPxJe5frzyQfV4oY=
+github.com/testcontainers/testcontainers-go/modules/redis v0.36.0 h1:Z+6APQ0DjQP8Kj5Fu+lkAlH2v7f5QkAQyyjnf1Kq8sw=
+github.com/testcontainers/testcontainers-go/modules/redis v0.36.0/go.mod h1:LV66RJhSMikZrxJRc6O0nKcRqykmjQSyX82S93haE2w=
 github.com/tidwall/gjson v1.14.2/go.mod h1:/wbyibRr2FHMks5tjHJ5F8dMZh3AcwJEMf5vlfC0lxk=
 github.com/tidwall/gjson v1.18.0 h1:FIDeeyB800efLX89e5a8Y0BNH+LOngJyGrIWxG2FKQY=
 github.com/tidwall/gjson v1.18.0/go.mod h1:/wbyibRr2FHMks5tjHJ5F8dMZh3AcwJEMf5vlfC0lxk=

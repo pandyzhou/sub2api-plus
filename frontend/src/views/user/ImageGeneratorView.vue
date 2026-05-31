@@ -3,7 +3,7 @@
     <div class="relative h-[calc(100dvh-6rem)] min-h-[640px] overflow-hidden rounded-3xl border border-slate-200 bg-slate-100 shadow-xl shadow-slate-950/5 dark:border-slate-800 dark:bg-slate-950 md:h-[calc(100dvh-7rem)] lg:h-[calc(100dvh-8rem)]">
       <div class="absolute inset-0 pointer-events-none bg-[radial-gradient(circle_at_top_left,rgba(34,197,94,0.14),transparent_28%),radial-gradient(circle_at_top_right,rgba(14,165,233,0.10),transparent_30%)]" />
 
-      <div class="relative grid h-full min-h-0 grid-cols-1 lg:grid-cols-[280px_minmax(0,1fr)_320px]">
+      <div class="relative grid h-full min-h-0 grid-cols-1 lg:grid-cols-[248px_minmax(0,1fr)] 2xl:grid-cols-[260px_minmax(0,1fr)_320px]">
         <!-- Sessions -->
         <aside
           :class="[
@@ -37,14 +37,14 @@
             <div v-else-if="sessions.length === 0" class="rounded-2xl border border-dashed border-slate-200 px-4 py-8 text-center text-sm text-slate-500 dark:border-slate-800 dark:text-slate-400">
               {{ t('image.noSessions') }}
             </div>
-            <div v-else class="space-y-1.5">
+            <div v-else class="space-y-1">
               <button
                 v-for="session in sessions"
                 :key="session.id"
                 :class="[
                   'group flex min-h-16 w-full cursor-pointer items-center gap-3 rounded-2xl border px-3 py-2.5 text-left transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-emerald-400',
                   currentSessionId === session.id
-                    ? 'border-emerald-300 bg-emerald-50 shadow-sm shadow-emerald-500/10 dark:border-emerald-800 dark:bg-emerald-950/30'
+                    ? 'border-emerald-200 bg-emerald-50/50 shadow-sm shadow-emerald-500/8 dark:border-emerald-800/60 dark:bg-emerald-950/20'
                     : 'border-transparent hover:border-slate-200 hover:bg-slate-50 dark:hover:border-slate-800 dark:hover:bg-slate-900/70'
                 ]"
                 @click="handleSelectSession(session)"
@@ -58,7 +58,7 @@
                   ]"
                 >{{ session.records?.length || 0 }}</span>
                 <span class="min-w-0 flex-1">
-                  <span class="block truncate text-sm font-semibold text-slate-800 dark:text-slate-100">{{ session.title || t('image.newSession') }}</span>
+                  <span class="line-clamp-2 text-sm font-semibold leading-snug text-slate-800 dark:text-slate-100">{{ session.title || t('image.newSession') }}</span>
                   <span class="mt-1 block text-xs text-slate-500 dark:text-slate-400">{{ formatTime(session.updated_at || session.created_at) }}</span>
                 </span>
                 <span
@@ -110,21 +110,21 @@
                 </span>
                 <span class="hidden text-xs text-slate-500 dark:text-slate-400 sm:inline">{{ currentSession?.title || '新创作' }}</span>
               </div>
-              <h1 class="mt-1 truncate text-lg font-semibold text-slate-950 dark:text-white">AI 图片创作工作台</h1>
+              <h1 class="mt-1 truncate text-lg font-semibold text-slate-950 dark:text-white">AI 图片创作</h1>
             </div>
 
-            <div class="hidden items-center gap-2 md:flex">
+            <div class="hidden items-center rounded-full border border-slate-200 bg-slate-100/80 p-0.5 dark:border-slate-800 dark:bg-slate-900/80 md:flex">
               <button
                 :class="[
-                  'min-h-11 cursor-pointer rounded-2xl px-4 text-sm font-medium transition-all focus:outline-none focus:ring-2 focus:ring-emerald-400',
-                  !imageStore.editMode ? 'bg-slate-950 text-white shadow-lg shadow-slate-950/15 dark:bg-white dark:text-slate-950' : 'border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300'
+                  'min-h-[34px] cursor-pointer rounded-full px-3.5 text-xs font-medium transition-all focus:outline-none focus:ring-2 focus:ring-emerald-400',
+                  !imageStore.editMode ? 'bg-white text-emerald-700 shadow-sm dark:bg-slate-800 dark:text-emerald-300' : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
                 ]"
                 @click="setMode(false)"
               >{{ t('image.textToImage') }}</button>
               <button
                 :class="[
-                  'min-h-11 cursor-pointer rounded-2xl px-4 text-sm font-medium transition-all focus:outline-none focus:ring-2 focus:ring-emerald-400',
-                  imageStore.editMode ? 'bg-slate-950 text-white shadow-lg shadow-slate-950/15 dark:bg-white dark:text-slate-950' : 'border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300'
+                  'min-h-[34px] cursor-pointer rounded-full px-3.5 text-xs font-medium transition-all focus:outline-none focus:ring-2 focus:ring-emerald-400',
+                  imageStore.editMode ? 'bg-white text-emerald-700 shadow-sm dark:bg-slate-800 dark:text-emerald-300' : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
                 ]"
                 @click="setMode(true)"
               >{{ t('image.imageEdit') }}</button>
@@ -149,19 +149,29 @@
             </section>
 
             <section v-if="displayTurns.length === 0 && !imageStore.generating" class="mx-auto grid min-h-full max-w-6xl place-items-center py-8">
-              <div class="w-full rounded-[2rem] border border-slate-200 bg-white/82 p-6 text-center shadow-xl shadow-slate-950/5 backdrop-blur dark:border-slate-800 dark:bg-slate-900/70 sm:p-10">
-                <div class="mx-auto flex h-20 w-20 items-center justify-center rounded-3xl bg-gradient-to-br from-emerald-400 to-sky-500 text-white shadow-lg shadow-emerald-500/25">
-                  <svg class="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909M3.75 21h16.5A2.25 2.25 0 0 0 22.5 18.75V5.25A2.25 2.25 0 0 0 20.25 3H3.75A2.25 2.25 0 0 0 1.5 5.25v13.5A2.25 2.25 0 0 0 3.75 21Z" /></svg>
-                </div>
-                <h2 class="mt-6 text-2xl font-semibold text-slate-950 dark:text-white">从一句提示词开始创作</h2>
-                <p class="mx-auto mt-2 max-w-2xl text-sm leading-6 text-slate-600 dark:text-slate-300">描述主体、风格、光线、构图和色彩。生成结果会保存在当前会话中，便于回看与下载。</p>
-                <div class="mt-6 flex flex-wrap justify-center gap-2">
-                  <button
-                    v-for="example in promptExamples"
-                    :key="example"
-                    class="min-h-10 cursor-pointer rounded-full border border-slate-200 bg-slate-50 px-4 text-sm text-slate-700 transition-colors hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-400 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-300 dark:hover:border-emerald-700 dark:hover:bg-emerald-950/40"
-                    @click="usePromptExample(example)"
-                  >{{ example }}</button>
+              <div class="relative w-full overflow-hidden rounded-[2rem] border border-slate-200/80 bg-white/82 p-6 text-center shadow-xl shadow-slate-950/5 backdrop-blur dark:border-slate-800/70 dark:bg-slate-900/70 sm:p-10">
+                <!-- 装饰光晕 -->
+                <div class="pointer-events-none absolute -top-24 -right-24 h-72 w-72 rounded-full bg-gradient-to-br from-emerald-300/20 to-sky-300/10 blur-3xl" />
+                <div class="pointer-events-none absolute -bottom-20 -left-20 h-56 w-56 rounded-full bg-gradient-to-tr from-emerald-400/15 to-teal-300/8 blur-3xl" />
+                <div class="pointer-events-none absolute top-1/2 left-1/2 h-40 w-40 -translate-x-1/2 -translate-y-1/2 rounded-full bg-gradient-to-br from-emerald-200/10 to-sky-200/10 blur-2xl" />
+
+                <div class="relative">
+                  <div class="mx-auto flex h-20 w-20 items-center justify-center rounded-3xl bg-gradient-to-br from-emerald-400 to-sky-500 text-white shadow-lg shadow-emerald-500/25">
+                    <svg class="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909M3.75 21h16.5A2.25 2.25 0 0 0 22.5 18.75V5.25A2.25 2.25 0 0 0 20.25 3H3.75A2.25 2.25 0 0 0 1.5 5.25v13.5A2.25 2.25 0 0 0 3.75 21Z" /></svg>
+                  </div>
+                  <h2 class="mt-6 text-3xl font-bold text-slate-950 dark:text-white">从一句提示词开始创作</h2>
+                  <p class="mx-auto mt-3 max-w-2xl text-sm leading-6 text-slate-500 dark:text-slate-400">描述主体、风格、光线、构图和色彩，生成结果会保存在当前会话中。</p>
+                  <div class="mt-7 grid grid-cols-1 gap-2.5 xl:grid-cols-2">
+                    <button
+                      v-for="(example, idx) in promptExamples"
+                      :key="example"
+                      class="group flex items-start gap-3 rounded-2xl border border-slate-200/80 bg-gradient-to-br from-white to-slate-50/80 p-3.5 text-left transition-all duration-200 hover:border-emerald-300 hover:shadow-md hover:shadow-emerald-500/8 focus:outline-none focus:ring-2 focus:ring-emerald-400 dark:border-slate-700/60 dark:from-slate-900 dark:to-slate-950/80 dark:hover:border-emerald-700/60 dark:hover:shadow-emerald-900/20"
+                      @click="usePromptExample(example)"
+                    >
+                      <span class="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-emerald-400 to-sky-400 text-xs font-bold text-white shadow-sm shadow-emerald-500/20 dark:from-emerald-500 dark:to-sky-500">{{ idx + 1 }}</span>
+                      <span class="text-sm leading-5 text-slate-600 group-hover:text-emerald-700 dark:text-slate-300 dark:group-hover:text-emerald-300">{{ example }}</span>
+                    </button>
+                  </div>
                 </div>
               </div>
             </section>
@@ -213,14 +223,14 @@
                           loading="lazy"
                         />
                       </button>
-                      <figcaption class="absolute inset-x-0 bottom-0 translate-y-1 bg-gradient-to-t from-slate-950/80 via-slate-950/45 to-transparent p-4 opacity-0 transition-all duration-200 group-hover:translate-y-0 group-hover:opacity-100">
+                      <figcaption class="absolute inset-x-0 bottom-0 bg-gradient-to-t from-slate-950/80 via-slate-950/40 to-transparent p-3 pb-2.5 pt-10">
                         <div class="flex items-end justify-between gap-3">
-                          <p class="line-clamp-2 text-xs leading-5 text-white/92">{{ img.revised_prompt || turn.prompt }}</p>
-                          <div class="flex shrink-0 gap-2">
-                            <button class="inline-flex h-10 w-10 cursor-pointer items-center justify-center rounded-2xl bg-white/18 text-white backdrop-blur hover:bg-white/28 focus:outline-none focus:ring-2 focus:ring-white" aria-label="复制图片地址" @click.stop="copyImageUrl(img)">
+                          <p class="line-clamp-2 text-xs leading-5 text-white/90 opacity-0 transition-opacity duration-200 group-hover:opacity-100">{{ img.revised_prompt || turn.prompt }}</p>
+                          <div class="flex shrink-0 gap-1.5">
+                            <button class="inline-flex h-9 w-9 cursor-pointer items-center justify-center rounded-xl bg-white/18 text-white backdrop-blur transition-colors hover:bg-white/30 focus:outline-none focus:ring-2 focus:ring-white" aria-label="复制图片地址" @click.stop="copyImageUrl(img)">
                               <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 0 1-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75" /><path stroke-linecap="round" stroke-linejoin="round" d="M9 3.75h10.125c.621 0 1.125.504 1.125 1.125v12.75c0 .621-.504 1.125-1.125 1.125H9A1.125 1.125 0 0 1 7.875 17.625V4.875C7.875 4.254 8.379 3.75 9 3.75Z" /></svg>
                             </button>
-                            <button class="inline-flex h-10 w-10 cursor-pointer items-center justify-center rounded-2xl bg-white/18 text-white backdrop-blur hover:bg-white/28 focus:outline-none focus:ring-2 focus:ring-white" :aria-label="t('image.download')" @click.stop="downloadImage(img, imageIndex)">
+                            <button class="inline-flex h-9 w-9 cursor-pointer items-center justify-center rounded-xl bg-white/18 text-white backdrop-blur transition-colors hover:bg-white/30 focus:outline-none focus:ring-2 focus:ring-white" :aria-label="t('image.download')" @click.stop="downloadImage(img, imageIndex)">
                               <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" /></svg>
                             </button>
                           </div>
@@ -249,8 +259,8 @@
                   <span class="rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-500 dark:bg-slate-950 dark:text-slate-400">{{ generatingElapsedLabel }}</span>
                 </div>
                 <div class="grid gap-4" :class="gridColsClass">
-                  <div v-for="i in imageStore.settings.n" :key="`skel-${i}`" class="aspect-square overflow-hidden rounded-3xl bg-slate-100 dark:bg-slate-950">
-                    <div class="h-full w-full animate-shimmer bg-gradient-to-r from-transparent via-white/70 to-transparent dark:via-white/10" />
+                  <div v-for="i in imageStore.settings.n" :key="`skel-${i}`" class="aspect-square overflow-hidden rounded-3xl bg-emerald-50/50 dark:bg-emerald-950/20">
+                    <div class="h-full w-full animate-shimmer bg-gradient-to-r from-transparent via-emerald-200/60 to-transparent dark:via-emerald-800/20" />
                   </div>
                 </div>
               </div>
@@ -258,21 +268,40 @@
           </div>
 
           <footer class="border-t border-slate-200/80 bg-white/90 p-3 backdrop-blur-xl dark:border-slate-800 dark:bg-slate-950/82 sm:p-4">
-            <PromptComposer
-              :prompt="prompt"
-              :can-submit="canSubmit"
-              :generating="imageStore.generating"
-              :edit-mode="imageStore.editMode"
-              :show-settings-button="true"
-              @update:prompt="prompt = $event"
-              @submit="handleGenerate"
-              @toggle-settings="showMobileSettings = !showMobileSettings"
-            />
+            <div class="space-y-2">
+              <div class="flex items-end gap-2">
+                <textarea
+                  v-model="prompt"
+                  data-image-prompt-input="true"
+                  placeholder="描述你想生成的图片：主体、风格、光线、构图、色彩……"
+                  rows="2"
+                  class="input min-h-[48px] flex-1 resize-none !rounded-2xl !text-slate-800 placeholder:!text-slate-400/70 dark:placeholder:!text-slate-500/60"
+                  @keydown.ctrl.enter="handleGenerate"
+                  @keydown.meta.enter="handleGenerate"
+                />
+                <button
+                  type="button"
+                  class="btn btn-secondary min-h-11 cursor-pointer px-3 2xl:hidden"
+                  aria-label="打开设置"
+                  @click="showMobileSettings = !showMobileSettings"
+                >
+                  <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" /></svg>
+                </button>
+                <button
+                  type="button"
+                  :disabled="!canSubmit"
+                  :class="['btn min-h-11 cursor-pointer rounded-full px-6 font-semibold shadow-md transition-all', canSubmit ? 'bg-gradient-to-r from-emerald-500 to-emerald-600 text-white shadow-emerald-500/25 hover:from-emerald-600 hover:to-emerald-700 hover:shadow-lg hover:shadow-emerald-500/30' : 'btn-secondary cursor-not-allowed opacity-50']"
+                  @click="handleGenerate"
+                >
+                  {{ imageStore.generating ? '生成中' : (imageStore.editMode ? '编辑' : '生成') }}
+                </button>
+              </div>
+            </div>
           </footer>
         </main>
 
         <!-- Right control panel -->
-        <aside class="hidden min-h-0 border-l border-slate-200 bg-white/88 backdrop-blur-xl dark:border-slate-800 dark:bg-slate-950/78 lg:flex lg:flex-col">
+        <aside class="hidden min-h-0 border-l border-slate-200 bg-white/88 backdrop-blur-xl dark:border-slate-800 dark:bg-slate-950/78 2xl:flex 2xl:flex-col">
           <CreatorPanel />
         </aside>
       </div>
@@ -280,7 +309,7 @@
       <!-- Mobile settings sheet -->
       <Teleport to="body">
         <Transition name="fade">
-          <div v-if="showMobileSettings" class="fixed inset-0 z-[9996] bg-slate-950/50 backdrop-blur-sm lg:hidden" @click.self="showMobileSettings = false">
+          <div v-if="showMobileSettings" class="fixed inset-0 z-[9996] bg-slate-950/50 backdrop-blur-sm 2xl:hidden" @click.self="showMobileSettings = false">
             <div class="absolute inset-x-0 bottom-0 max-h-[82dvh] overflow-y-auto rounded-t-[2rem] border border-slate-200 bg-white p-4 shadow-2xl dark:border-slate-800 dark:bg-slate-950">
               <div class="mb-4 flex items-center justify-between">
                 <h3 class="text-base font-semibold text-slate-950 dark:text-white">创作设置</h3>
@@ -528,9 +557,20 @@ function scrollCanvasToLatest(behavior: 'auto' | 'smooth' = 'smooth') {
   })
 }
 
+function focusPromptInput() {
+  void nextTick(() => {
+    const input = document.querySelector<HTMLTextAreaElement>('[data-image-prompt-input="true"]')
+    if (!input) return
+    input.focus()
+    input.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  })
+}
+
 function usePromptExample(example: string) {
   prompt.value = example
   lastError.value = ''
+  focusPromptInput()
+  appStore.showSuccess('已填入示例提示词，点击“生成”开始生图')
 }
 
 async function handleNewSession() {
@@ -677,47 +717,6 @@ async function copyImageUrl(img: ImageResult) {
   }
 }
 
-const PromptComposer = defineComponent({
-  name: 'PromptComposer',
-  props: {
-    prompt: { type: String, required: true },
-    canSubmit: { type: Boolean, required: true },
-    generating: { type: Boolean, required: true },
-    editMode: { type: Boolean, required: true },
-    showSettingsButton: { type: Boolean, default: false },
-  },
-  emits: ['update:prompt', 'submit', 'toggle-settings'],
-  setup(props, { emit }) {
-    return () => h('div', { class: 'space-y-2' }, [
-      h('div', { class: 'flex items-end gap-2' }, [
-        h('textarea', {
-          value: props.prompt,
-          placeholder: '描述你想生成的图片：主体、风格、光线、构图、色彩……',
-          rows: 2,
-          class: 'input min-h-[64px] flex-1 resize-none !rounded-2xl',
-          onInput: (event: Event) => emit('update:prompt', (event.target as HTMLTextAreaElement).value),
-          onKeydown: (event: KeyboardEvent) => {
-            if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') emit('submit')
-          }
-        }),
-        props.showSettingsButton ? h('button', {
-          type: 'button',
-          class: 'btn btn-secondary min-h-11 cursor-pointer px-3 lg:hidden',
-          'aria-label': '打开设置',
-          onClick: () => emit('toggle-settings')
-        }, [h('svg', { class: 'h-4 w-4', fill: 'none', viewBox: '0 0 24 24', stroke: 'currentColor', 'stroke-width': '2' }, [h('path', { 'stroke-linecap': 'round', 'stroke-linejoin': 'round', d: 'M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z' })])]) : null,
-        h('button', {
-          type: 'button',
-          disabled: !props.canSubmit,
-          class: ['btn min-h-11 cursor-pointer px-5', props.canSubmit ? 'btn-primary' : 'btn-secondary cursor-not-allowed opacity-50'],
-          onClick: () => emit('submit')
-        }, props.generating ? '生成中' : (props.editMode ? '编辑' : '生成'))
-      ]),
-      h('p', { class: 'text-xs text-slate-500 dark:text-slate-400' }, 'Ctrl / Cmd + Enter 发送。编辑模式需要先上传参考图。')
-    ])
-  }
-})
-
 const CreatorPanel = defineComponent({
   name: 'CreatorPanel',
   props: { compact: { type: Boolean, default: false } },
@@ -726,8 +725,7 @@ const CreatorPanel = defineComponent({
       h('section', { class: 'rounded-3xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900/70' }, [
         h('div', { class: 'mb-3 flex items-center justify-between gap-3' }, [
           h('div', null, [
-            h('h3', { class: 'font-semibold text-slate-950 dark:text-white' }, '创作模式'),
-            h('p', { class: 'mt-1 text-xs text-slate-500 dark:text-slate-400' }, '切换文生图或图片编辑')
+            h('h3', { class: 'font-semibold text-slate-950 dark:text-white' }, '创作模式')
           ])
         ]),
         h('div', { class: 'grid grid-cols-2 gap-2' }, [
@@ -766,9 +764,9 @@ const CreatorPanel = defineComponent({
         ])))
       ]),
 
-      h('section', { class: 'rounded-3xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-900/70 dark:bg-amber-950/20' }, [
-        h('h3', { class: 'font-semibold text-amber-950 dark:text-amber-100' }, '提示词建议'),
-        h('ul', { class: 'mt-3 space-y-2 text-sm leading-6 text-amber-800 dark:text-amber-200' }, [
+      h('section', { class: 'rounded-3xl border border-emerald-200 bg-emerald-50/80 p-4 shadow-sm dark:border-emerald-900/60 dark:bg-emerald-950/20' }, [
+        h('h3', { class: 'font-semibold text-emerald-950 dark:text-emerald-100' }, '提示词建议'),
+        h('ul', { class: 'mt-3 space-y-2 text-sm leading-6 text-emerald-800 dark:text-emerald-200' }, [
           h('li', null, '写清主体、风格、光线、构图和色彩。'),
           h('li', null, '避免年龄暗示、性化描述和容易触发安全策略的词。'),
           h('li', null, '失败时先减少敏感词，再降低数量或质量重试。')

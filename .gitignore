@@ -87,6 +87,23 @@ temp/
 .dev/
 .serena/
 
+# Python 缓存 / 调试产物
+__pycache__/
+*.py[cod]
+*$py.class
+
+# 本地调试脚本与截图产物
+debug_*.py
+deploy/debug_*.py
+screenshot-*.png
+image-page-*.png
+*-redesign.png
+
+# 本地敏感/临时标记文件
+access_token
+openai_backend_mode=*
+sub2api-test
+
 # ===================
 # 构建产物
 # ===================
@@ -104,6 +121,7 @@ backend/internal/web/dist/*
 
 # 后端运行时缓存数据
 backend/data/
+.local_pgdata/
 
 # ===================
 # 本地配置文件（包含敏感信息）

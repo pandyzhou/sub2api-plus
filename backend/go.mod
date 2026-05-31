@@ -36,8 +36,8 @@ require (
 	github.com/spf13/viper v1.18.2
 	github.com/stretchr/testify v1.11.1
 	github.com/stripe/stripe-go/v85 v85.0.0
-	github.com/testcontainers/testcontainers-go/modules/postgres v0.35.0
-	github.com/testcontainers/testcontainers-go/modules/redis v0.35.0
+	github.com/testcontainers/testcontainers-go/modules/postgres v0.36.0
+	github.com/testcontainers/testcontainers-go/modules/redis v0.36.0
 	github.com/tidwall/gjson v1.18.0
 	github.com/tidwall/sjson v1.2.5
 	github.com/wechatpay-apiv3/wechatpay-go v0.2.21
