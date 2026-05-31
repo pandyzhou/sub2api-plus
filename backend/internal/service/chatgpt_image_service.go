@@ -84,17 +84,19 @@ func (s *ChatGPTImageService) Generate(ctx context.Context, input ChatGPTImageGe
 		}
 	}
 
-	slog.Info("chatgpt_image_generate_start", "prompt", input.Prompt, "model", model)
+	slog.Info("chatgpt_image_generate_start", "prompt", input.Prompt, "model", model, "has_access_token", accessToken != "", "has_refresh_token", refreshToken != "")
 
 	// 3. 调用 Python 脚本生成图片（使用 curl_cffi 绕过 Cloudflare）
 	scriptPath := "/app/chatgpt_image_proxy.py"
 	result, err := callPythonImageScript(ctx, scriptPath, accessToken, refreshToken, input.Prompt, model, s.proxyURL)
 	if err != nil {
+		slog.Error("chatgpt_image: python script failed", "error", err)
 		s.poolService.MarkImageResult(rawToken, false)
 		return nil, fmt.Errorf("generate image: %w", err)
 	}
 
 	// 4. 解析结果
+	slog.Info("chatgpt_image: python result", "success", result.Success, "has_url", result.ImageURL != "", "has_b64", result.ImageB64 != "", "error", result.Error)
 	if !result.Success {
 		s.poolService.MarkImageResult(rawToken, false)
 		return nil, fmt.Errorf("image generation failed: %s", result.Error)
@@ -103,52 +105,66 @@ func (s *ChatGPTImageService) Generate(ctx context.Context, input ChatGPTImageGe
 	// 5. 下载图片（如果返回的是 URL）
 	var imgBytes []byte
 	if result.ImageURL != "" {
+		slog.Info("chatgpt_image: downloading from URL", "url", result.ImageURL)
 		// 使用 Python 客户端下载（保持一致的 TLS 指纹）
 		client := NewChatGPTImageClient(accessToken, refreshToken, s.proxyURL)
 		imgBytes, err = client.DownloadImageFromURL(ctx, result.ImageURL)
 		if err != nil {
+			slog.Error("chatgpt_image: download failed", "error", err)
 			s.poolService.MarkImageResult(rawToken, false)
 			return nil, fmt.Errorf("download image failed: %w", err)
 		}
+		slog.Info("chatgpt_image: download success", "size", len(imgBytes))
 	} else if result.ImageB64 != "" {
+		slog.Info("chatgpt_image: decoding base64", "length", len(result.ImageB64))
 		// 直接使用 base64 数据
 		imgBytes, err = base64.StdEncoding.DecodeString(result.ImageB64)
 		if err != nil {
+			slog.Error("chatgpt_image: base64 decode failed", "error", err)
 			s.poolService.MarkImageResult(rawToken, false)
 			return nil, fmt.Errorf("decode base64 image failed: %w", err)
 		}
+		slog.Info("chatgpt_image: base64 decode success", "size", len(imgBytes))
 	} else {
+		slog.Error("chatgpt_image: no image data in result")
 		s.poolService.MarkImageResult(rawToken, false)
 		return nil, fmt.Errorf("no image data returned")
 	}
 
-	// 5. 保存图片
+	// 6. 保存图片
 	var publicURL string
 	if s.storage != nil {
+		slog.Info("chatgpt_image: saving to storage", "size", len(imgBytes))
 		_, publicURL, err = s.storage.Save(imgBytes, "webp")
 		if err != nil {
 			slog.Warn("chatgpt_image: failed to save image", "error", err)
 			// Fallback to base64
 			publicURL = ""
+		} else {
+			slog.Info("chatgpt_image: saved to storage", "url", publicURL)
 		}
+	} else {
+		slog.Warn("chatgpt_image: storage is nil, will use base64")
 	}
 
-	// 6. 标记成功
+	// 7. 标记成功
 	s.poolService.MarkImageResult(rawToken, true)
 
-	// 7. 构建输出
+	// 8. 构建输出
 	output := &ChatGPTImageGenerateOutput{
 		Created: time.Now().Unix(),
 		Data:    make([]ChatGPTImageData, 0, 1),
 	}
 
 	if publicURL != "" {
+		slog.Info("chatgpt_image: returning URL", "url", publicURL)
 		output.Data = append(output.Data, ChatGPTImageData{
 			URL:           publicURL,
 			RevisedPrompt: input.Prompt,
 		})
 	} else {
 		// Fallback to base64
+		slog.Info("chatgpt_image: returning base64", "size", len(imgBytes))
 		b64 := base64.StdEncoding.EncodeToString(imgBytes)
 		output.Data = append(output.Data, ChatGPTImageData{
 			B64JSON:       b64,
@@ -156,7 +172,7 @@ func (s *ChatGPTImageService) Generate(ctx context.Context, input ChatGPTImageGe
 		})
 	}
 
-	slog.Info("chatgpt_image_generate_success", "url", result.ImageURL)
+	slog.Info("chatgpt_image_generate_success", "data_count", len(output.Data), "has_url", output.Data[0].URL != "", "has_b64", output.Data[0].B64JSON != "")
 	return output, nil
 }
 
