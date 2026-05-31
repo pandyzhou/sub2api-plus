@@ -1,358 +1,310 @@
 <template>
   <AppLayout>
-    <div class="flex h-[calc(100dvh-6rem)] min-h-0 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm dark:border-dark-700 dark:bg-dark-900 md:h-[calc(100dvh-7rem)] lg:h-[calc(100dvh-8rem)]">
-      <!-- ==================== Left: Session Sidebar ==================== -->
-      <aside
-        :class="[
-          'flex flex-col border-r border-gray-200 bg-gray-50/80 dark:border-dark-700 dark:bg-dark-800/60',
-          'w-64 shrink-0',
-          mobileShowSessions ? 'absolute inset-0 z-20 w-full sm:relative sm:w-64' : 'hidden sm:flex'
-        ]"
-      >
-        <!-- Header -->
-        <div class="flex items-center justify-between border-b border-gray-200 px-4 py-3 dark:border-dark-700">
-          <h2 class="text-sm font-semibold text-gray-900 dark:text-white">{{ t('image.title') }}</h2>
-          <button
-            class="sm:hidden rounded-md p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-            @click="mobileShowSessions = false"
-          >
-            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
-          </button>
-        </div>
+    <div class="relative h-[calc(100dvh-6rem)] min-h-[640px] overflow-hidden rounded-3xl border border-slate-200 bg-slate-100 shadow-xl shadow-slate-950/5 dark:border-slate-800 dark:bg-slate-950 md:h-[calc(100dvh-7rem)] lg:h-[calc(100dvh-8rem)]">
+      <div class="absolute inset-0 pointer-events-none bg-[radial-gradient(circle_at_top_left,rgba(34,197,94,0.14),transparent_28%),radial-gradient(circle_at_top_right,rgba(14,165,233,0.10),transparent_30%)]" />
 
-        <!-- New Session -->
-        <div class="p-3">
-          <button class="btn btn-primary btn-sm w-full" @click="handleNewSession">
-            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
-            {{ t('image.newSession') }}
-          </button>
-        </div>
-
-        <!-- Session List -->
-        <div class="flex-1 overflow-y-auto scrollbar-hide px-2">
-          <div v-if="imageStore.loading" class="flex justify-center py-8"><LoadingSpinner /></div>
-          <div v-else-if="sessions.length === 0" class="py-8 text-center text-xs text-gray-400 dark:text-gray-500">
-            {{ t('image.noSessions') }}
-          </div>
-          <div v-else class="space-y-0.5">
-            <div
-              v-for="session in sessions"
-              :key="session.id"
-              :class="[
-                'group relative flex cursor-pointer items-center gap-2 rounded-lg border-l-2 px-3 py-2 transition-colors',
-                currentSessionId === session.id
-                  ? 'border-primary-500 bg-primary-50 text-primary-700 dark:bg-primary-900/20'
-                  : 'border-transparent hover:border-gray-300 hover:bg-gray-100 dark:hover:bg-dark-700'
-              ]"
-              @click="handleSelectSession(session)"
+      <div class="relative grid h-full min-h-0 grid-cols-1 lg:grid-cols-[280px_minmax(0,1fr)_320px]">
+        <!-- Sessions -->
+        <aside
+          :class="[
+            'z-30 flex min-h-0 flex-col border-r border-slate-200/80 bg-white/92 backdrop-blur-xl dark:border-slate-800 dark:bg-slate-950/88',
+            mobileShowSessions ? 'absolute inset-y-0 left-0 w-[min(86vw,320px)] shadow-2xl lg:relative lg:w-auto lg:shadow-none' : 'hidden lg:flex'
+          ]"
+        >
+          <div class="flex items-center justify-between border-b border-slate-200 px-4 py-4 dark:border-slate-800">
+            <div>
+              <p class="text-xs font-medium uppercase tracking-[0.2em] text-emerald-600 dark:text-emerald-400">Studio</p>
+              <h2 class="mt-1 text-base font-semibold text-slate-950 dark:text-white">{{ t('image.title') }}</h2>
+            </div>
+            <button
+              class="inline-flex h-11 w-11 cursor-pointer items-center justify-center rounded-2xl text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-400 dark:text-slate-400 dark:hover:bg-slate-900 dark:hover:text-white lg:hidden"
+              aria-label="关闭会话列表"
+              @click="mobileShowSessions = false"
             >
-              <div class="min-w-0 flex-1">
-                <p
-                  :class="[
-                    'truncate text-sm font-medium',
-                    currentSessionId === session.id
-                      ? 'text-primary-700 dark:text-primary-300'
-                      : 'text-gray-800 dark:text-gray-200'
-                  ]"
-                >{{ session.title || t('image.newSession') }}</p>
-                <p class="mt-0.5 text-[11px] text-gray-400 dark:text-gray-500">
-                  {{ (session.records?.length || 0) }} 轮 · {{ formatTime(session.updated_at || session.created_at) }}
-                </p>
-              </div>
+              <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>
+            </button>
+          </div>
+
+          <div class="border-b border-slate-200 p-3 dark:border-slate-800">
+            <button class="btn btn-primary btn-sm min-h-11 w-full cursor-pointer" @click="handleNewSession">
+              <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
+              {{ t('image.newSession') }}
+            </button>
+          </div>
+
+          <div class="min-h-0 flex-1 overflow-y-auto px-2 py-3 scrollbar-hide">
+            <div v-if="imageStore.loading" class="flex justify-center py-10"><LoadingSpinner /></div>
+            <div v-else-if="sessions.length === 0" class="rounded-2xl border border-dashed border-slate-200 px-4 py-8 text-center text-sm text-slate-500 dark:border-slate-800 dark:text-slate-400">
+              {{ t('image.noSessions') }}
+            </div>
+            <div v-else class="space-y-1.5">
               <button
-                class="shrink-0 rounded p-1 text-gray-300 opacity-0 transition-opacity hover:bg-red-50 hover:text-red-500 group-hover:opacity-100 dark:text-gray-600 dark:hover:bg-red-900/20 dark:hover:text-red-400"
-                :title="t('image.deleteSession')"
-                @click.stop="handleDeleteSession(session.id)"
+                v-for="session in sessions"
+                :key="session.id"
+                :class="[
+                  'group flex min-h-16 w-full cursor-pointer items-center gap-3 rounded-2xl border px-3 py-2.5 text-left transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-emerald-400',
+                  currentSessionId === session.id
+                    ? 'border-emerald-300 bg-emerald-50 shadow-sm shadow-emerald-500/10 dark:border-emerald-800 dark:bg-emerald-950/30'
+                    : 'border-transparent hover:border-slate-200 hover:bg-slate-50 dark:hover:border-slate-800 dark:hover:bg-slate-900/70'
+                ]"
+                @click="handleSelectSession(session)"
               >
-                <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                <span
+                  :class="[
+                    'flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border text-xs font-semibold',
+                    currentSessionId === session.id
+                      ? 'border-emerald-200 bg-white text-emerald-700 dark:border-emerald-800 dark:bg-slate-950 dark:text-emerald-300'
+                      : 'border-slate-200 bg-white text-slate-500 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-400'
+                  ]"
+                >{{ session.records?.length || 0 }}</span>
+                <span class="min-w-0 flex-1">
+                  <span class="block truncate text-sm font-semibold text-slate-800 dark:text-slate-100">{{ session.title || t('image.newSession') }}</span>
+                  <span class="mt-1 block text-xs text-slate-500 dark:text-slate-400">{{ formatTime(session.updated_at || session.created_at) }}</span>
+                </span>
+                <span
+                  class="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-slate-300 opacity-0 transition-all hover:bg-red-50 hover:text-red-500 group-hover:opacity-100 dark:text-slate-700 dark:hover:bg-red-950/40 dark:hover:text-red-400"
+                  role="button"
+                  :aria-label="t('image.deleteSession')"
+                  @click.stop="handleDeleteSession(session.id)"
+                >
+                  <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>
+                </span>
               </button>
             </div>
           </div>
-        </div>
 
-        <!-- Clear -->
-        <div class="border-t border-gray-200 p-3 dark:border-dark-700">
-          <button
-            v-if="sessions.length > 0"
-            class="btn btn-ghost btn-sm w-full text-xs text-gray-400 hover:text-red-500"
-            @click="handleClearHistory"
-          >
-            <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" /></svg>
-            {{ t('image.clearHistory') }}
-          </button>
-        </div>
-      </aside>
-
-      <!-- ==================== Right: Main Area ==================== -->
-      <div class="flex flex-1 flex-col overflow-hidden">
-        <!-- Top Bar -->
-        <div class="flex items-center gap-2 border-b border-gray-200 bg-white px-4 py-2 dark:border-dark-700 dark:bg-dark-900">
-          <!-- Mobile toggle -->
-          <button
-            class="sm:hidden rounded-md p-1.5 text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-dark-700"
-            @click="mobileShowSessions = true"
-          >
-            <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" /></svg>
-          </button>
-
-          <!-- Mode tabs -->
-          <div class="flex rounded-lg bg-gray-100 p-0.5 dark:bg-dark-800">
+          <div class="border-t border-slate-200 p-3 dark:border-slate-800">
             <button
-              :class="[
-                'rounded-md px-3 py-1.5 text-xs font-medium transition-colors',
-                !imageStore.editMode
-                  ? 'bg-white text-primary-700 shadow-sm dark:bg-dark-700 dark:text-primary-300'
-                  : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
-              ]"
-              @click="imageStore.editMode = false"
-            >{{ t('image.textToImage') }}</button>
+              v-if="sessions.length > 0"
+              class="btn btn-ghost btn-sm min-h-11 w-full cursor-pointer text-slate-500 hover:text-red-500"
+              @click="handleClearHistory"
+            >
+              <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79" /></svg>
+              {{ t('image.clearHistory') }}
+            </button>
+          </div>
+        </aside>
+
+        <button
+          v-if="mobileShowSessions"
+          class="absolute inset-0 z-20 bg-slate-950/40 backdrop-blur-sm lg:hidden"
+          aria-label="关闭会话遮罩"
+          @click="mobileShowSessions = false"
+        />
+
+        <!-- Main canvas -->
+        <main class="flex min-w-0 min-h-0 flex-col">
+          <header class="flex min-h-[72px] items-center gap-3 border-b border-slate-200/80 bg-white/88 px-4 backdrop-blur-xl dark:border-slate-800 dark:bg-slate-950/78 sm:px-5">
             <button
-              :class="[
-                'rounded-md px-3 py-1.5 text-xs font-medium transition-colors',
-                imageStore.editMode
-                  ? 'bg-white text-primary-700 shadow-sm dark:bg-dark-700 dark:text-primary-300'
-                  : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
-              ]"
-              @click="imageStore.editMode = true"
-            >{{ t('image.imageEdit') }}</button>
-          </div>
-
-          <div class="flex-1" />
-
-          <!-- Settings toggle -->
-          <button
-            class="btn btn-ghost btn-sm"
-            :class="showSettings && 'bg-gray-100 dark:bg-dark-700'"
-            @click="showSettings = !showSettings"
-          >
-            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.24-.438.613-.431.992a6.759 6.759 0 010 .255c-.007.378.138.75.43.99l1.005.828c.424.35.534.954.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 010-.255c.007-.378-.138-.75-.43-.99l-1.004-.828a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.214-1.281z" /><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-          </button>
-
-          <button
-            v-if="results.length > 1"
-            class="btn btn-ghost btn-sm"
-            @click="downloadAll"
-          >
-            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" /></svg>
-            {{ t('image.downloadAll') }}
-          </button>
-        </div>
-
-        <!-- Settings Panel -->
-        <Transition name="slide-down">
-          <div v-if="showSettings" class="border-b border-gray-100 bg-gray-50/50 px-4 py-3 dark:border-dark-800 dark:bg-dark-800/40">
-            <div class="flex flex-wrap items-end gap-4">
-              <div v-for="field in settingsFields" :key="field.key" class="flex flex-col gap-1">
-                <label class="input-label">{{ field.label }}</label>
-                <select
-                  :value="getSettingValue(field.key)"
-                  @change="setSettingValue(field.key, ($event.target as HTMLSelectElement).value)"
-                  class="input !py-1.5 !text-sm"
-                >
-                  <option v-for="opt in field.options" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
-                </select>
-              </div>
-            </div>
-          </div>
-        </Transition>
-
-        <!-- Edit Mode: Upload -->
-        <Transition name="slide-down">
-          <div v-if="imageStore.editMode" class="border-b border-gray-100 px-4 py-3 dark:border-dark-800">
-            <div
-              :class="[
-                'relative flex flex-col items-center justify-center rounded-xl border-2 border-dashed p-5 transition-colors',
-                isDragging
-                  ? 'border-primary-400 bg-primary-50/50 dark:border-primary-600 dark:bg-primary-900/20'
-                  : 'border-gray-200 bg-gray-50 hover:border-gray-300 dark:border-dark-600 dark:bg-dark-800 dark:hover:border-dark-500'
-              ]"
-              @dragover.prevent="isDragging = true"
-              @dragleave.prevent="isDragging = false"
-              @drop.prevent="handleDrop"
+              class="inline-flex h-11 w-11 cursor-pointer items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-600 shadow-sm transition-colors hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-400 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 lg:hidden"
+              aria-label="打开会话列表"
+              @click="mobileShowSessions = true"
             >
-              <div v-if="editPreview" class="relative">
-                <img :src="editPreview" class="max-h-40 rounded-lg object-contain shadow-md" alt="Reference" />
-                <button
-                  class="absolute -right-2 -top-2 rounded-full bg-red-500 p-1 text-white shadow hover:bg-red-600"
-                  @click="clearEditImage"
-                >
-                  <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
-                </button>
-              </div>
-              <div v-else class="text-center">
-                <svg class="mx-auto h-8 w-8 text-gray-300 dark:text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M3.75 21h16.5A2.25 2.25 0 0022.5 18.75V5.25A2.25 2.25 0 0020.25 3H3.75A2.25 2.25 0 001.5 5.25v13.5A2.25 2.25 0 003.75 21z" />
-                </svg>
-                <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">{{ t('image.dragOrClick') }}</p>
-                <input
-                  ref="fileInput"
-                  type="file"
-                  accept="image/*"
-                  class="absolute inset-0 cursor-pointer opacity-0"
-                  @change="handleFileSelect"
-                />
-              </div>
-            </div>
-          </div>
-        </Transition>
+              <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" /></svg>
+            </button>
 
-        <!-- ==================== Canvas ==================== -->
-        <div ref="canvasRef" class="flex-1 overflow-y-auto overscroll-contain scroll-smooth bg-gray-50/45 dark:bg-dark-950/25">
-          <!-- Empty State -->
-          <div v-if="displayTurns.length === 0 && !imageStore.generating" class="flex h-full flex-col items-center justify-center px-6 text-center">
-            <div class="rounded-3xl bg-primary-50 p-5 text-primary-400 shadow-inner shadow-primary-500/10 dark:bg-primary-900/15 dark:text-primary-300">
-              <svg class="h-14 w-14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M3.75 21h16.5A2.25 2.25 0 0022.5 18.75V5.25A2.25 2.25 0 0020.25 3H3.75A2.25 2.25 0 001.5 5.25v13.5A2.25 2.25 0 003.75 21z" />
-              </svg>
+            <div class="min-w-0 flex-1">
+              <div class="flex flex-wrap items-center gap-2">
+                <span class="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
+                  {{ imageStore.editMode ? t('image.imageEdit') : t('image.textToImage') }}
+                </span>
+                <span class="hidden text-xs text-slate-500 dark:text-slate-400 sm:inline">{{ currentSession?.title || '新创作' }}</span>
+              </div>
+              <h1 class="mt-1 truncate text-lg font-semibold text-slate-950 dark:text-white">AI 图片创作工作台</h1>
             </div>
-            <p class="mt-4 text-sm font-medium text-gray-500 dark:text-gray-400">{{ t('image.noImages') }}</p>
-            <p class="mt-1 max-w-md text-xs leading-5 text-gray-400 dark:text-gray-500">选择左侧历史会话会展示对应提示词；生成新图片后会像对话一样保留本轮输入和结果。</p>
-          </div>
 
-          <!-- Conversation Turns -->
-          <div v-if="displayTurns.length > 0" class="mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 py-5 sm:px-6 lg:px-8">
-            <section
-              v-for="(turn, turnIndex) in displayTurns"
-              :key="turn.id"
-              class="animate-fade-in"
-              :style="{ animationDelay: `${Math.min(turnIndex, 6) * 45}ms` }"
-            >
-              <!-- User prompt -->
-              <div class="flex justify-end">
-                <div class="max-w-[92%] rounded-2xl rounded-tr-md border border-primary-100 bg-primary-50 px-4 py-3 text-right shadow-sm dark:border-primary-800/60 dark:bg-primary-900/20 sm:max-w-[78%]">
-                  <div class="mb-1.5 flex flex-wrap justify-end gap-2 text-[11px] text-primary-500/80 dark:text-primary-300/80">
-                    <span>#{{ turnIndex + 1 }}</span>
-                    <span>{{ turn.model || imageStore.settings.model }}</span>
-                    <span v-if="turn.createdAt">{{ formatTime(turn.createdAt) }}</span>
+            <div class="hidden items-center gap-2 md:flex">
+              <button
+                :class="[
+                  'min-h-11 cursor-pointer rounded-2xl px-4 text-sm font-medium transition-all focus:outline-none focus:ring-2 focus:ring-emerald-400',
+                  !imageStore.editMode ? 'bg-slate-950 text-white shadow-lg shadow-slate-950/15 dark:bg-white dark:text-slate-950' : 'border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300'
+                ]"
+                @click="setMode(false)"
+              >{{ t('image.textToImage') }}</button>
+              <button
+                :class="[
+                  'min-h-11 cursor-pointer rounded-2xl px-4 text-sm font-medium transition-all focus:outline-none focus:ring-2 focus:ring-emerald-400',
+                  imageStore.editMode ? 'bg-slate-950 text-white shadow-lg shadow-slate-950/15 dark:bg-white dark:text-slate-950' : 'border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300'
+                ]"
+                @click="setMode(true)"
+              >{{ t('image.imageEdit') }}</button>
+            </div>
+          </header>
+
+          <div ref="canvasRef" class="min-h-0 flex-1 overflow-y-auto scroll-smooth px-4 py-5 sm:px-6 lg:px-8">
+            <section v-if="lastError" class="mx-auto mb-5 max-w-5xl rounded-3xl border border-red-200 bg-red-50 p-4 shadow-sm dark:border-red-900/70 dark:bg-red-950/30">
+              <div class="flex gap-3">
+                <span class="mt-0.5 inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-red-100 text-red-600 dark:bg-red-950 dark:text-red-300">
+                  <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m0 3.75h.008v.008H12v-.008Zm9-4.5a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg>
+                </span>
+                <div class="min-w-0 flex-1">
+                  <h3 class="font-semibold text-red-900 dark:text-red-100">生成没有完成</h3>
+                  <p class="mt-1 whitespace-pre-wrap text-sm leading-6 text-red-700 dark:text-red-200">{{ lastError }}</p>
+                  <div class="mt-3 flex flex-wrap gap-2">
+                    <button class="btn btn-danger btn-sm min-h-10 cursor-pointer" :disabled="!failedPrompt || imageStore.generating" @click="retryFailedPrompt">重试上一条</button>
+                    <button class="btn btn-secondary btn-sm min-h-10 cursor-pointer" @click="lastError = ''">知道了</button>
                   </div>
-                  <p class="whitespace-pre-wrap text-sm leading-6 text-gray-900 dark:text-gray-100 sm:text-[15px]">{{ turn.prompt }}</p>
                 </div>
               </div>
+            </section>
 
-              <!-- Assistant results -->
-              <div class="mt-3 flex justify-start">
-                <div class="w-full rounded-2xl rounded-tl-md border border-gray-200 bg-white p-3 shadow-sm dark:border-dark-700 dark:bg-dark-900 sm:p-4">
-                  <div class="mb-3 flex items-center justify-between gap-3">
-                    <div class="flex items-center gap-2 text-xs font-medium text-gray-500 dark:text-gray-400">
-                      <span class="inline-flex h-6 w-6 items-center justify-center rounded-full bg-gray-100 text-primary-500 dark:bg-dark-800">
-                        <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09Z" /></svg>
+            <section v-if="displayTurns.length === 0 && !imageStore.generating" class="mx-auto grid min-h-full max-w-6xl place-items-center py-8">
+              <div class="w-full rounded-[2rem] border border-slate-200 bg-white/82 p-6 text-center shadow-xl shadow-slate-950/5 backdrop-blur dark:border-slate-800 dark:bg-slate-900/70 sm:p-10">
+                <div class="mx-auto flex h-20 w-20 items-center justify-center rounded-3xl bg-gradient-to-br from-emerald-400 to-sky-500 text-white shadow-lg shadow-emerald-500/25">
+                  <svg class="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909M3.75 21h16.5A2.25 2.25 0 0 0 22.5 18.75V5.25A2.25 2.25 0 0 0 20.25 3H3.75A2.25 2.25 0 0 0 1.5 5.25v13.5A2.25 2.25 0 0 0 3.75 21Z" /></svg>
+                </div>
+                <h2 class="mt-6 text-2xl font-semibold text-slate-950 dark:text-white">从一句提示词开始创作</h2>
+                <p class="mx-auto mt-2 max-w-2xl text-sm leading-6 text-slate-600 dark:text-slate-300">描述主体、风格、光线、构图和色彩。生成结果会保存在当前会话中，便于回看与下载。</p>
+                <div class="mt-6 flex flex-wrap justify-center gap-2">
+                  <button
+                    v-for="example in promptExamples"
+                    :key="example"
+                    class="min-h-10 cursor-pointer rounded-full border border-slate-200 bg-slate-50 px-4 text-sm text-slate-700 transition-colors hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-400 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-300 dark:hover:border-emerald-700 dark:hover:bg-emerald-950/40"
+                    @click="usePromptExample(example)"
+                  >{{ example }}</button>
+                </div>
+              </div>
+            </section>
+
+            <section v-if="displayTurns.length > 0" class="mx-auto flex w-full max-w-6xl flex-col gap-6 pb-6">
+              <article
+                v-for="(turn, turnIndex) in displayTurns"
+                :key="turn.id"
+                class="animate-fade-in"
+                :style="{ animationDelay: `${Math.min(turnIndex, 6) * 45}ms` }"
+              >
+                <div class="flex justify-end">
+                  <div class="max-w-[94%] rounded-3xl rounded-tr-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-right shadow-sm dark:border-emerald-900/70 dark:bg-emerald-950/30 sm:max-w-[78%]">
+                    <div class="mb-1.5 flex flex-wrap justify-end gap-2 text-xs text-emerald-700/80 dark:text-emerald-300/80">
+                      <span>#{{ turnIndex + 1 }}</span>
+                      <span>{{ turn.model || imageStore.settings.model }}</span>
+                      <span v-if="turn.createdAt">{{ formatTime(turn.createdAt) }}</span>
+                    </div>
+                    <p class="whitespace-pre-wrap text-sm leading-6 text-slate-950 dark:text-slate-100 sm:text-[15px]">{{ turn.prompt }}</p>
+                  </div>
+                </div>
+
+                <div class="mt-3 rounded-3xl rounded-tl-lg border border-slate-200 bg-white/88 p-3 shadow-sm backdrop-blur dark:border-slate-800 dark:bg-slate-900/76 sm:p-4">
+                  <div class="mb-3 flex flex-wrap items-center justify-between gap-3">
+                    <div class="flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-200">
+                      <span class="inline-flex h-9 w-9 items-center justify-center rounded-2xl bg-slate-100 text-emerald-600 dark:bg-slate-950 dark:text-emerald-300">
+                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09Z" /></svg>
                       </span>
                       <span>{{ turn.imageResults.length > 0 ? `${turn.imageResults.length} 张结果` : '提示词记录' }}</span>
                     </div>
-                    <span class="text-[11px] text-gray-400 dark:text-gray-500">{{ imageStore.settings.size }} · {{ imageStore.settings.quality }}</span>
+                    <button
+                      v-if="turn.imageResults.length > 1"
+                      class="btn btn-ghost btn-sm min-h-10 cursor-pointer"
+                      @click="downloadImages(turn.imageResults)"
+                    >{{ t('image.downloadAll') }}</button>
                   </div>
 
                   <div v-if="turn.imageResults.length > 0" class="grid gap-4" :class="gridClassForCount(turn.imageResults.length)">
-                    <div
+                    <figure
                       v-for="(img, imageIndex) in turn.imageResults"
                       :key="`${turn.id}-${imageIndex}`"
-                      class="group relative overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm transition-shadow hover:shadow-md dark:border-dark-600 dark:bg-dark-800"
+                      class="group relative overflow-hidden rounded-3xl border border-slate-200 bg-slate-50 shadow-sm transition-shadow hover:shadow-xl hover:shadow-slate-950/10 dark:border-slate-800 dark:bg-slate-950"
                     >
-                      <div class="aspect-square cursor-pointer" @click="openTurnLightbox(turn.imageResults, imageIndex)">
+                      <button class="block aspect-square w-full cursor-zoom-in overflow-hidden text-left focus:outline-none focus:ring-2 focus:ring-emerald-400" :aria-label="`预览第 ${imageIndex + 1} 张图片`" @click="openTurnLightbox(turn.imageResults, imageIndex)">
                         <img
                           :src="getImageSrc(img)"
-                          :alt="img.revised_prompt || 'Generated image'"
-                          class="h-full w-full object-cover transition duration-200 group-hover:scale-[1.02] group-hover:brightness-95"
+                          :alt="img.revised_prompt || turn.prompt || 'Generated image'"
+                          class="h-full w-full object-cover transition duration-300 group-hover:scale-[1.025] group-hover:brightness-95"
                           loading="lazy"
                         />
-                      </div>
-                      <!-- Hover overlay -->
-                      <div class="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/65 to-transparent p-3 opacity-0 transition-opacity group-hover:opacity-100">
-                        <div class="flex items-end justify-between gap-2">
-                          <p v-if="img.revised_prompt" class="line-clamp-2 text-[11px] leading-relaxed text-white/90">{{ img.revised_prompt }}</p>
-                          <span v-else class="text-[11px] text-white/70">结果 {{ imageIndex + 1 }}</span>
-                          <button
-                            class="shrink-0 rounded-lg bg-white/20 p-1.5 text-white backdrop-blur-sm hover:bg-white/30"
-                            :title="t('image.download')"
-                            @click.stop="downloadImage(img, imageIndex)"
-                          >
-                            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" /></svg>
-                          </button>
+                      </button>
+                      <figcaption class="absolute inset-x-0 bottom-0 translate-y-1 bg-gradient-to-t from-slate-950/80 via-slate-950/45 to-transparent p-4 opacity-0 transition-all duration-200 group-hover:translate-y-0 group-hover:opacity-100">
+                        <div class="flex items-end justify-between gap-3">
+                          <p class="line-clamp-2 text-xs leading-5 text-white/92">{{ img.revised_prompt || turn.prompt }}</p>
+                          <div class="flex shrink-0 gap-2">
+                            <button class="inline-flex h-10 w-10 cursor-pointer items-center justify-center rounded-2xl bg-white/18 text-white backdrop-blur hover:bg-white/28 focus:outline-none focus:ring-2 focus:ring-white" aria-label="复制图片地址" @click.stop="copyImageUrl(img)">
+                              <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 0 1-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75" /><path stroke-linecap="round" stroke-linejoin="round" d="M9 3.75h10.125c.621 0 1.125.504 1.125 1.125v12.75c0 .621-.504 1.125-1.125 1.125H9A1.125 1.125 0 0 1 7.875 17.625V4.875C7.875 4.254 8.379 3.75 9 3.75Z" /></svg>
+                            </button>
+                            <button class="inline-flex h-10 w-10 cursor-pointer items-center justify-center rounded-2xl bg-white/18 text-white backdrop-blur hover:bg-white/28 focus:outline-none focus:ring-2 focus:ring-white" :aria-label="t('image.download')" @click.stop="downloadImage(img, imageIndex)">
+                              <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" /></svg>
+                            </button>
+                          </div>
                         </div>
-                      </div>
-                    </div>
+                      </figcaption>
+                    </figure>
                   </div>
 
-                  <div v-else class="rounded-xl border border-dashed border-gray-200 bg-gray-50 px-4 py-6 text-center text-sm text-gray-400 dark:border-dark-700 dark:bg-dark-800/60 dark:text-gray-500">
+                  <div v-else class="rounded-3xl border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500 dark:border-slate-800 dark:bg-slate-950/60 dark:text-slate-400">
                     这条历史记录只保存了提示词，未包含图片数据。重新发送或新生成后会在这里显示图片。
+                  </div>
+                </div>
+              </article>
+            </section>
+
+            <section v-if="imageStore.generating" class="mx-auto w-full max-w-6xl pb-6">
+              <div class="rounded-3xl border border-emerald-200 bg-white p-4 shadow-xl shadow-emerald-950/5 dark:border-emerald-900/60 dark:bg-slate-900/80">
+                <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+                  <div class="flex items-center gap-3 text-sm text-slate-700 dark:text-slate-200">
+                    <LoadingSpinner />
+                    <div>
+                      <p class="font-semibold">正在生成图片</p>
+                      <p class="mt-0.5 text-xs text-slate-500 dark:text-slate-400">结果会追加到当前会话，生成较慢时请保持页面打开。</p>
+                    </div>
+                  </div>
+                  <span class="rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-500 dark:bg-slate-950 dark:text-slate-400">{{ generatingElapsedLabel }}</span>
+                </div>
+                <div class="grid gap-4" :class="gridColsClass">
+                  <div v-for="i in imageStore.settings.n" :key="`skel-${i}`" class="aspect-square overflow-hidden rounded-3xl bg-slate-100 dark:bg-slate-950">
+                    <div class="h-full w-full animate-shimmer bg-gradient-to-r from-transparent via-white/70 to-transparent dark:via-white/10" />
                   </div>
                 </div>
               </div>
             </section>
           </div>
 
-          <!-- Generating skeleton -->
-          <div v-if="imageStore.generating" class="mx-auto w-full max-w-6xl px-4 pb-5 sm:px-6 lg:px-8">
-            <div class="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-dark-700 dark:bg-dark-900">
-              <div class="mb-3 flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
-                <LoadingSpinner />
-                <span>{{ imageStore.editMode ? t('image.edit') : t('image.generate') }}中，结果会追加到当前会话</span>
-              </div>
-              <div class="grid gap-4" :class="gridColsClass">
-                <div
-                  v-for="i in imageStore.settings.n"
-                  :key="`skel-${i}`"
-                  class="aspect-square animate-pulse rounded-xl bg-gray-100 dark:bg-dark-800"
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- ==================== Prompt Input ==================== -->
-        <div class="border-t border-gray-200 bg-white px-4 py-3 dark:border-dark-700 dark:bg-dark-900">
-          <div class="flex gap-3">
-            <textarea
-              v-model="prompt"
-              :placeholder="t('image.promptPlaceholder')"
-              rows="2"
-              class="input flex-1 resize-none"
-              @keydown.ctrl.enter="handleGenerate"
-              @keydown.meta.enter="handleGenerate"
+          <footer class="border-t border-slate-200/80 bg-white/90 p-3 backdrop-blur-xl dark:border-slate-800 dark:bg-slate-950/82 sm:p-4">
+            <PromptComposer
+              :prompt="prompt"
+              :can-submit="canSubmit"
+              :generating="imageStore.generating"
+              :edit-mode="imageStore.editMode"
+              :show-settings-button="true"
+              @update:prompt="prompt = $event"
+              @submit="handleGenerate"
+              @toggle-settings="showMobileSettings = !showMobileSettings"
             />
-            <button
-              :disabled="imageStore.generating || !prompt.trim()"
-              :class="[
-                'btn self-end px-5 py-2.5',
-                imageStore.generating || !prompt.trim()
-                  ? 'btn-secondary cursor-not-allowed opacity-50'
-                  : 'btn-primary'
-              ]"
-              @click="handleGenerate"
-            >
-              <svg v-if="imageStore.generating" class="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
-                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
-                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-              </svg>
-              {{ imageStore.generating ? t('image.generating') : (imageStore.editMode ? t('image.edit') : t('image.generate')) }}
-            </button>
-          </div>
-          <p class="mt-1.5 text-[11px] text-gray-400 dark:text-gray-500">Ctrl + Enter {{ t('image.generate') }}</p>
-        </div>
+          </footer>
+        </main>
+
+        <!-- Right control panel -->
+        <aside class="hidden min-h-0 border-l border-slate-200 bg-white/88 backdrop-blur-xl dark:border-slate-800 dark:bg-slate-950/78 lg:flex lg:flex-col">
+          <CreatorPanel />
+        </aside>
       </div>
 
-      <!-- Lightbox -->
-      <ImageLightbox
-        :visible="lightboxVisible"
-        :images="results"
-        :initial-index="lightboxIndex"
-        @close="lightboxVisible = false"
-      />
-
-      <!-- Confirm dialogs -->
+      <!-- Mobile settings sheet -->
       <Teleport to="body">
         <Transition name="fade">
-          <div
-            v-if="showClearConfirm"
-            class="fixed inset-0 z-[9997] flex items-center justify-center bg-black/50"
-            @click.self="showClearConfirm = false"
-          >
-            <div class="card mx-4 w-full max-w-sm p-6">
+          <div v-if="showMobileSettings" class="fixed inset-0 z-[9996] bg-slate-950/50 backdrop-blur-sm lg:hidden" @click.self="showMobileSettings = false">
+            <div class="absolute inset-x-0 bottom-0 max-h-[82dvh] overflow-y-auto rounded-t-[2rem] border border-slate-200 bg-white p-4 shadow-2xl dark:border-slate-800 dark:bg-slate-950">
+              <div class="mb-4 flex items-center justify-between">
+                <h3 class="text-base font-semibold text-slate-950 dark:text-white">创作设置</h3>
+                <button class="inline-flex h-11 w-11 cursor-pointer items-center justify-center rounded-2xl text-slate-500 hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-400 dark:text-slate-400 dark:hover:bg-slate-900" aria-label="关闭设置" @click="showMobileSettings = false">
+                  <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>
+                </button>
+              </div>
+              <CreatorPanel compact />
+            </div>
+          </div>
+        </Transition>
+      </Teleport>
+
+      <ImageLightbox :visible="lightboxVisible" :images="lightboxImages" :initial-index="lightboxIndex" @close="lightboxVisible = false" />
+
+      <Teleport to="body">
+        <Transition name="fade">
+          <div v-if="showClearConfirm" class="fixed inset-0 z-[9997] flex items-center justify-center bg-black/50 p-4" @click.self="showClearConfirm = false">
+            <div class="card w-full max-w-sm p-6">
               <h3 class="text-lg font-semibold text-gray-900 dark:text-white">{{ t('image.clearHistory') }}</h3>
               <p class="mt-2 text-sm text-gray-600 dark:text-gray-400">{{ t('image.confirmClear') }}</p>
               <div class="mt-6 flex justify-end gap-3">
-                <button class="btn btn-secondary btn-sm" @click="showClearConfirm = false">{{ t('common.cancel') }}</button>
-                <button class="btn btn-danger btn-sm" @click="confirmClear">{{ t('common.confirm') }}</button>
+                <button class="btn btn-secondary btn-sm min-h-10 cursor-pointer" @click="showClearConfirm = false">{{ t('common.cancel') }}</button>
+                <button class="btn btn-danger btn-sm min-h-10 cursor-pointer" @click="confirmClear">{{ t('common.confirm') }}</button>
               </div>
             </div>
           </div>
@@ -361,17 +313,13 @@
 
       <Teleport to="body">
         <Transition name="fade">
-          <div
-            v-if="showDeleteConfirm"
-            class="fixed inset-0 z-[9997] flex items-center justify-center bg-black/50"
-            @click.self="showDeleteConfirm = false"
-          >
-            <div class="card mx-4 w-full max-w-sm p-6">
+          <div v-if="showDeleteConfirm" class="fixed inset-0 z-[9997] flex items-center justify-center bg-black/50 p-4" @click.self="showDeleteConfirm = false">
+            <div class="card w-full max-w-sm p-6">
               <h3 class="text-lg font-semibold text-gray-900 dark:text-white">{{ t('image.deleteSession') }}</h3>
               <p class="mt-2 text-sm text-gray-600 dark:text-gray-400">{{ t('image.confirmDelete') }}</p>
               <div class="mt-6 flex justify-end gap-3">
-                <button class="btn btn-secondary btn-sm" @click="showDeleteConfirm = false">{{ t('common.cancel') }}</button>
-                <button class="btn btn-danger btn-sm" @click="confirmDelete">{{ t('common.confirm') }}</button>
+                <button class="btn btn-secondary btn-sm min-h-10 cursor-pointer" @click="showDeleteConfirm = false">{{ t('common.cancel') }}</button>
+                <button class="btn btn-danger btn-sm min-h-10 cursor-pointer" @click="confirmDelete">{{ t('common.confirm') }}</button>
               </div>
             </div>
           </div>
@@ -382,7 +330,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, nextTick, onMounted } from 'vue'
+import { ref, computed, nextTick, onMounted, onUnmounted, defineComponent, h } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useImageStore } from '@/stores/image'
 import { useAppStore } from '@/stores/app'
@@ -395,7 +343,6 @@ const { t } = useI18n()
 const imageStore = useImageStore()
 const appStore = useAppStore()
 
-// ==================== State ====================
 const prompt = ref('')
 const isDragging = ref(false)
 const editFile = ref<File | null>(null)
@@ -405,42 +352,55 @@ const canvasRef = ref<HTMLElement | null>(null)
 const mobileShowSessions = ref(false)
 const lightboxVisible = ref(false)
 const lightboxIndex = ref(0)
+const lightboxImages = ref<ImageResult[]>([])
 const showClearConfirm = ref(false)
 const showDeleteConfirm = ref(false)
 const pendingDeleteId = ref<string | null>(null)
-const showSettings = ref(false)
+const showMobileSettings = ref(false)
+const lastError = ref('')
+const failedPrompt = ref('')
+const activePrompt = ref('')
+const generatingStartedAt = ref<number | null>(null)
+const nowTick = ref(Date.now())
+let tickTimer: number | undefined
 
-// ==================== Settings ====================
+const promptExamples = [
+  '一只可爱的橘猫，柔和光线，卡通插画风格',
+  '未来城市夜景，霓虹灯，电影感构图，超清细节',
+  '森林里的玻璃小屋，晨雾，温暖光线，治愈系插画',
+  '高端咖啡产品海报，极简构图，柔和阴影，商业摄影风格'
+]
+
 const settingsFields = computed(() => [
   {
-    key: 'model', label: t('image.model'),
+    key: 'model', label: t('image.model'), hint: '建议使用 auto，让后端选择可用模型。',
     options: [
-      { value: 'auto', label: 'auto' },
+      { value: 'auto', label: 'Auto' },
       { value: 'gpt-image-1', label: 'gpt-image-1' },
       { value: 'dall-e-3', label: 'dall-e-3' },
       { value: 'dall-e-2', label: 'dall-e-2' },
     ]
   },
   {
-    key: 'size', label: t('image.size'),
+    key: 'size', label: t('image.size'), hint: '方图适合头像和插画，横图适合封面。',
     options: [
-      { value: 'auto', label: 'auto' },
-      { value: '1024x1024', label: '1024×1024' },
-      { value: '1536x1024', label: '1536×1024' },
-      { value: '1024x1536', label: '1024×1536' },
+      { value: 'auto', label: 'Auto' },
+      { value: '1024x1024', label: '1024 × 1024' },
+      { value: '1536x1024', label: '1536 × 1024' },
+      { value: '1024x1536', label: '1024 × 1536' },
     ]
   },
   {
-    key: 'quality', label: t('image.quality'),
+    key: 'quality', label: t('image.quality'), hint: '高质量更慢，失败时可先用 auto 或 medium。',
     options: [
-      { value: 'auto', label: 'auto' },
-      { value: 'low', label: 'low' },
-      { value: 'medium', label: 'medium' },
-      { value: 'high', label: 'high' },
+      { value: 'auto', label: 'Auto' },
+      { value: 'low', label: 'Low' },
+      { value: 'medium', label: 'Medium' },
+      { value: 'high', label: 'High' },
     ]
   },
   {
-    key: 'n', label: t('image.count'),
+    key: 'n', label: t('image.count'), hint: '多图会消耗更多额度，建议先生成 1 张。',
     options: [
       { value: '1', label: '1' },
       { value: '2', label: '2' },
@@ -465,6 +425,11 @@ function setSettingValue(key: string, value: string) {
   else if (key === 'n') imageStore.settings.n = Number(value)
 }
 
+function setMode(editMode: boolean) {
+  imageStore.editMode = editMode
+  lastError.value = ''
+}
+
 interface DisplayTurn {
   id: string
   prompt: string
@@ -476,8 +441,7 @@ interface DisplayTurn {
 function storedImageToResult(image: string): ImageResult | null {
   const value = String(image || '').trim()
   if (!value) return null
-  if (value.startsWith('data:')) return { url: value }
-  if (value.startsWith('http://') || value.startsWith('https://')) return { url: value }
+  if (value.startsWith('data:') || value.startsWith('http://') || value.startsWith('https://') || value.startsWith('/')) return { url: value }
   return { b64_json: value }
 }
 
@@ -494,19 +458,13 @@ function recordToDisplayTurn(record: ImageRecord): DisplayTurn {
   }
 }
 
-function scrollCanvasToLatest(behavior: 'auto' | 'smooth' = 'smooth') {
-  void nextTick(() => {
-    const element = canvasRef.value
-    if (!element) return
-    element.scrollTo({ top: element.scrollHeight, behavior })
-  })
-}
-
-// ==================== Computed ====================
 const sessions = computed(() => imageStore.sessions)
 const results = computed(() => imageStore.results)
 const currentSession = computed(() => imageStore.currentSession)
 const currentSessionId = computed(() => imageStore.currentSession?.id || null)
+const canSubmit = computed(() => Boolean(prompt.value.trim()) && !imageStore.generating && (!imageStore.editMode || Boolean(editFile.value)))
+const activeSettingsSummary = computed(() => `${imageStore.settings.model} · ${imageStore.settings.size} · ${imageStore.settings.quality} · ${imageStore.settings.n} 张`)
+const allDisplayedImages = computed(() => displayTurns.value.flatMap((turn) => turn.imageResults))
 
 const displayTurns = computed<DisplayTurn[]>(() => {
   const session = currentSession.value
@@ -515,7 +473,7 @@ const displayTurns = computed<DisplayTurn[]>(() => {
   if (results.value.length > 0) {
     return [{
       id: session?.id || 'current-results',
-      prompt: session?.title || prompt.value || '当前生成',
+      prompt: session?.title || prompt.value || activePrompt.value || '当前生成',
       model: imageStore.settings.model,
       createdAt: session?.updated_at || session?.created_at,
       imageResults: [...results.value]
@@ -524,22 +482,26 @@ const displayTurns = computed<DisplayTurn[]>(() => {
   return []
 })
 
+const generatingElapsedLabel = computed(() => {
+  if (!generatingStartedAt.value) return '刚开始'
+  const seconds = Math.max(0, Math.floor((nowTick.value - generatingStartedAt.value) / 1000))
+  if (seconds < 60) return `${seconds}s`
+  return `${Math.floor(seconds / 60)}m ${seconds % 60}s`
+})
+
 function gridClassForCount(count: number) {
   if (count <= 1) return 'grid-cols-1 max-w-xl'
-  if (count === 2) return 'grid-cols-1 sm:grid-cols-2 max-w-3xl'
-  return 'grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'
+  if (count === 2) return 'grid-cols-1 sm:grid-cols-2 max-w-4xl'
+  return 'grid-cols-1 sm:grid-cols-2 xl:grid-cols-3'
 }
 
 const gridColsClass = computed(() => gridClassForCount(imageStore.settings.n))
 
-// ==================== Methods ====================
 function getImageSrc(img: ImageResult): string {
   if (img.url) return img.url
   if (img.b64_json) {
     const value = img.b64_json.trim()
-    if (value.startsWith('/') || value.startsWith('http://') || value.startsWith('https://') || value.startsWith('data:')) {
-      return value
-    }
+    if (value.startsWith('/') || value.startsWith('http://') || value.startsWith('https://') || value.startsWith('data:')) return value
     return `data:image/png;base64,${value}`
   }
   return ''
@@ -558,10 +520,24 @@ function formatTime(dateStr: string): string {
   } catch { return dateStr }
 }
 
+function scrollCanvasToLatest(behavior: 'auto' | 'smooth' = 'smooth') {
+  void nextTick(() => {
+    const element = canvasRef.value
+    if (!element) return
+    element.scrollTo({ top: element.scrollHeight, behavior })
+  })
+}
+
+function usePromptExample(example: string) {
+  prompt.value = example
+  lastError.value = ''
+}
+
 async function handleNewSession() {
   const title = prompt.value.trim().slice(0, 50) || t('image.newSession')
   await imageStore.createAndSelectSession(title)
   mobileShowSessions.value = false
+  lastError.value = ''
   scrollCanvasToLatest('auto')
 }
 
@@ -569,6 +545,7 @@ async function handleSelectSession(session: ImageSession) {
   imageStore.selectSession(session)
   mobileShowSessions.value = false
   await imageStore.loadSession(session.id)
+  lastError.value = ''
   scrollCanvasToLatest('auto')
 }
 
@@ -586,11 +563,38 @@ async function confirmDelete() {
 function handleClearHistory() { showClearConfirm.value = true }
 async function confirmClear() { await imageStore.removeAllSessions(); showClearConfirm.value = false }
 
+function friendlyErrorMessage(error: any): string {
+  const raw = String(error?.response?.data?.message || error?.message || error || '')
+  if (/token_invalidated|invalidated|invalid access token|authentication token/i.test(raw)) {
+    return '当前选中的 ChatGPT 账号 Token 已失效。系统会跳过异常账号，请稍后重试；如果连续失败，请在管理后台刷新或重新授权账号。'
+  }
+  if (/policy|safety|违反|安全|不能|无法|refused/i.test(raw)) {
+    return '提示词可能触发了图片安全策略。请去掉年龄暗示、敏感描述或容易误判的词，再重新生成。'
+  }
+  if (/没有可用|no available/i.test(raw)) {
+    return '当前没有可用的图片生成账号。请检查账号状态、额度和限流情况。'
+  }
+  if (/timeout|deadline|超时/i.test(raw)) {
+    return '图片生成等待超时。可以稍后重试，或降低图片数量/质量。'
+  }
+  return raw || '图片生成失败，请稍后重试。'
+}
+
 async function handleGenerate() {
   const trimmed = prompt.value.trim()
   if (!trimmed || imageStore.generating) return
+  if (imageStore.editMode && !editFile.value) {
+    lastError.value = '图片编辑模式需要先上传参考图。'
+    return
+  }
   if (!imageStore.currentSession) await imageStore.createAndSelectSession(trimmed.slice(0, 50))
+
+  activePrompt.value = trimmed
+  generatingStartedAt.value = Date.now()
+  lastError.value = ''
+  failedPrompt.value = ''
   scrollCanvasToLatest('smooth')
+
   try {
     if (imageStore.editMode && editFile.value) {
       const fd = new FormData()
@@ -606,12 +610,22 @@ async function handleGenerate() {
       await imageStore.generate(trimmed)
     }
     prompt.value = ''
+    activePrompt.value = ''
     scrollCanvasToLatest('smooth')
   } catch (e: any) {
     console.error('Generation failed:', e)
-    const errorMsg = e?.response?.data?.message || e?.message || '图片生成失败，请稍后重试'
-    appStore.showError(errorMsg, 15000)
+    failedPrompt.value = trimmed
+    lastError.value = friendlyErrorMessage(e)
+    appStore.showError(lastError.value, 15000)
+  } finally {
+    generatingStartedAt.value = null
   }
+}
+
+function retryFailedPrompt() {
+  if (!failedPrompt.value) return
+  prompt.value = failedPrompt.value
+  void handleGenerate()
 }
 
 function handleFileSelect(e: Event) {
@@ -630,44 +644,152 @@ function setEditFile(file: File) {
   reader.readAsDataURL(file)
 }
 function clearEditImage() {
-  editFile.value = null; editPreview.value = null
+  editFile.value = null
+  editPreview.value = null
   if (fileInput.value) fileInput.value.value = ''
 }
 
 function downloadImage(img: ImageResult, index: number) {
   const src = getImageSrc(img)
-  const link = document.createElement('a'); link.href = src; link.download = `image-${Date.now()}-${index}.png`
-  document.body.appendChild(link); link.click(); document.body.removeChild(link)
+  if (!src) return
+  const link = document.createElement('a')
+  link.href = src
+  link.download = `image-${Date.now()}-${index}.png`
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
 }
-function downloadAll() { results.value.forEach((img, i) => setTimeout(() => downloadImage(img, i), i * 300)) }
-function openLightbox(index: number) { lightboxIndex.value = index; lightboxVisible.value = true }
+function downloadImages(images: ImageResult[]) { images.forEach((img, i) => setTimeout(() => downloadImage(img, i), i * 250)) }
+function downloadAll() { downloadImages(allDisplayedImages.value) }
 function openTurnLightbox(images: ImageResult[], index: number) {
-  imageStore.results = images
-  openLightbox(index)
+  lightboxImages.value = images
+  lightboxIndex.value = index
+  lightboxVisible.value = true
+}
+async function copyImageUrl(img: ImageResult) {
+  const src = getImageSrc(img)
+  if (!src) return
+  try {
+    await navigator.clipboard.writeText(new URL(src, window.location.origin).toString())
+    appStore.showSuccess('图片地址已复制')
+  } catch {
+    appStore.showError('复制失败')
+  }
 }
 
-// ==================== Lifecycle ====================
-onMounted(() => { imageStore.loadSessions() })
+const PromptComposer = defineComponent({
+  name: 'PromptComposer',
+  props: {
+    prompt: { type: String, required: true },
+    canSubmit: { type: Boolean, required: true },
+    generating: { type: Boolean, required: true },
+    editMode: { type: Boolean, required: true },
+    showSettingsButton: { type: Boolean, default: false },
+  },
+  emits: ['update:prompt', 'submit', 'toggle-settings'],
+  setup(props, { emit }) {
+    return () => h('div', { class: 'space-y-2' }, [
+      h('div', { class: 'flex items-end gap-2' }, [
+        h('textarea', {
+          value: props.prompt,
+          placeholder: '描述你想生成的图片：主体、风格、光线、构图、色彩……',
+          rows: 2,
+          class: 'input min-h-[64px] flex-1 resize-none !rounded-2xl',
+          onInput: (event: Event) => emit('update:prompt', (event.target as HTMLTextAreaElement).value),
+          onKeydown: (event: KeyboardEvent) => {
+            if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') emit('submit')
+          }
+        }),
+        props.showSettingsButton ? h('button', {
+          type: 'button',
+          class: 'btn btn-secondary min-h-11 cursor-pointer px-3 lg:hidden',
+          'aria-label': '打开设置',
+          onClick: () => emit('toggle-settings')
+        }, [h('svg', { class: 'h-4 w-4', fill: 'none', viewBox: '0 0 24 24', stroke: 'currentColor', 'stroke-width': '2' }, [h('path', { 'stroke-linecap': 'round', 'stroke-linejoin': 'round', d: 'M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z' })])]) : null,
+        h('button', {
+          type: 'button',
+          disabled: !props.canSubmit,
+          class: ['btn min-h-11 cursor-pointer px-5', props.canSubmit ? 'btn-primary' : 'btn-secondary cursor-not-allowed opacity-50'],
+          onClick: () => emit('submit')
+        }, props.generating ? '生成中' : (props.editMode ? '编辑' : '生成'))
+      ]),
+      h('p', { class: 'text-xs text-slate-500 dark:text-slate-400' }, 'Ctrl / Cmd + Enter 发送。编辑模式需要先上传参考图。')
+    ])
+  }
+})
+
+const CreatorPanel = defineComponent({
+  name: 'CreatorPanel',
+  props: { compact: { type: Boolean, default: false } },
+  setup() {
+    return () => h('div', { class: 'flex min-h-0 flex-col gap-4 overflow-y-auto p-4' }, [
+      h('section', { class: 'rounded-3xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900/70' }, [
+        h('div', { class: 'mb-3 flex items-center justify-between gap-3' }, [
+          h('div', null, [
+            h('h3', { class: 'font-semibold text-slate-950 dark:text-white' }, '创作模式'),
+            h('p', { class: 'mt-1 text-xs text-slate-500 dark:text-slate-400' }, '切换文生图或图片编辑')
+          ])
+        ]),
+        h('div', { class: 'grid grid-cols-2 gap-2' }, [
+          h('button', { class: ['min-h-11 cursor-pointer rounded-2xl text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-400', !imageStore.editMode ? 'bg-emerald-500 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-950 dark:text-slate-300 dark:hover:bg-slate-800'], onClick: () => setMode(false) }, t('image.textToImage')),
+          h('button', { class: ['min-h-11 cursor-pointer rounded-2xl text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-400', imageStore.editMode ? 'bg-emerald-500 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-950 dark:text-slate-300 dark:hover:bg-slate-800'], onClick: () => setMode(true) }, t('image.imageEdit'))
+        ])
+      ]),
+
+      imageStore.editMode ? h('section', { class: 'rounded-3xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900/70' }, [
+        h('h3', { class: 'font-semibold text-slate-950 dark:text-white' }, '参考图片'),
+        h('div', {
+          class: ['relative mt-3 flex min-h-40 cursor-pointer flex-col items-center justify-center rounded-3xl border-2 border-dashed p-4 text-center transition-colors', isDragging.value ? 'border-emerald-400 bg-emerald-50 dark:bg-emerald-950/30' : 'border-slate-200 bg-slate-50 hover:border-emerald-300 dark:border-slate-800 dark:bg-slate-950 dark:hover:border-emerald-800'],
+          onDragover: (event: DragEvent) => { event.preventDefault(); isDragging.value = true },
+          onDragleave: (event: DragEvent) => { event.preventDefault(); isDragging.value = false },
+          onDrop: (event: DragEvent) => { event.preventDefault(); handleDrop(event) }
+        }, editPreview.value ? [
+          h('img', { src: editPreview.value, class: 'max-h-56 rounded-2xl object-contain shadow-md', alt: 'Reference image' }),
+          h('button', { class: 'absolute right-3 top-3 inline-flex h-10 w-10 cursor-pointer items-center justify-center rounded-2xl bg-red-500 text-white shadow hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-300', 'aria-label': '移除参考图', onClick: clearEditImage }, '×')
+        ] : [
+          h('svg', { class: 'h-9 w-9 text-slate-300 dark:text-slate-600', fill: 'none', viewBox: '0 0 24 24', stroke: 'currentColor', 'stroke-width': '1.5' }, [h('path', { 'stroke-linecap': 'round', 'stroke-linejoin': 'round', d: 'm2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159M3.75 21h16.5A2.25 2.25 0 0 0 22.5 18.75V5.25A2.25 2.25 0 0 0 20.25 3H3.75A2.25 2.25 0 0 0 1.5 5.25v13.5A2.25 2.25 0 0 0 3.75 21Z' })]),
+          h('p', { class: 'mt-2 text-sm font-medium text-slate-700 dark:text-slate-200' }, '点击或拖拽上传'),
+          h('p', { class: 'mt-1 text-xs text-slate-500 dark:text-slate-400' }, '编辑模式必须提供参考图'),
+          h('input', { ref: fileInput, type: 'file', accept: 'image/*', class: 'absolute inset-0 cursor-pointer opacity-0', onChange: handleFileSelect })
+        ])
+      ]) : null,
+
+      h('section', { class: 'rounded-3xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900/70' }, [
+        h('div', { class: 'mb-4' }, [
+          h('h3', { class: 'font-semibold text-slate-950 dark:text-white' }, '生成参数'),
+          h('p', { class: 'mt-1 text-xs text-slate-500 dark:text-slate-400' }, activeSettingsSummary.value)
+        ]),
+        h('div', { class: 'space-y-4' }, settingsFields.value.map((field) => h('label', { class: 'block' }, [
+          h('span', { class: 'mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-200' }, field.label),
+          h('select', { value: getSettingValue(field.key), class: 'input min-h-11 w-full !rounded-2xl', onChange: (event: Event) => setSettingValue(field.key, (event.target as HTMLSelectElement).value) }, field.options.map((opt) => h('option', { value: opt.value }, opt.label))),
+          h('span', { class: 'mt-1 block text-xs leading-5 text-slate-500 dark:text-slate-400' }, field.hint)
+        ])))
+      ]),
+
+      h('section', { class: 'rounded-3xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-900/70 dark:bg-amber-950/20' }, [
+        h('h3', { class: 'font-semibold text-amber-950 dark:text-amber-100' }, '提示词建议'),
+        h('ul', { class: 'mt-3 space-y-2 text-sm leading-6 text-amber-800 dark:text-amber-200' }, [
+          h('li', null, '写清主体、风格、光线、构图和色彩。'),
+          h('li', null, '避免年龄暗示、性化描述和容易触发安全策略的词。'),
+          h('li', null, '失败时先减少敏感词，再降低数量或质量重试。')
+        ])
+      ]),
+
+      allDisplayedImages.value.length > 1 ? h('button', { class: 'btn btn-secondary min-h-11 w-full cursor-pointer', onClick: downloadAll }, t('image.downloadAll')) : null
+    ])
+  }
+})
+
+onMounted(() => {
+  imageStore.loadSessions()
+  tickTimer = window.setInterval(() => { nowTick.value = Date.now() }, 1000)
+})
+onUnmounted(() => {
+  if (tickTimer) window.clearInterval(tickTimer)
+})
 </script>
 
 <style scoped>
-.slide-down-enter-active,
-.slide-down-leave-active {
-  transition: all 0.2s ease;
-  overflow: hidden;
-}
-.slide-down-enter-from,
-.slide-down-leave-to {
-  opacity: 0;
-  max-height: 0;
-  padding-top: 0;
-  padding-bottom: 0;
-}
-.slide-down-enter-to,
-.slide-down-leave-from {
-  max-height: 200px;
-}
-
 .fade-enter-active,
 .fade-leave-active {
   transition: opacity 0.2s ease;
@@ -683,5 +805,23 @@ onMounted(() => { imageStore.loadSessions() })
 }
 .animate-fade-in {
   animation: fade-in 0.35s ease-out both;
+}
+
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+.animate-shimmer {
+  animation: shimmer 1.6s infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-in,
+  .animate-shimmer {
+    animation: none;
+  }
+  * {
+    transition-duration: 0.01ms !important;
+  }
 }
 </style>
