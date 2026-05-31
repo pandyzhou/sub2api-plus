@@ -3,6 +3,10 @@ package server
 import (
 	"context"
 	"log"
+	"net/http"
+	"os"
+	"path/filepath"
+	"strings"
 	"sync/atomic"
 	"time"
 
@@ -114,4 +118,27 @@ func registerRoutes(
 	routes.RegisterPaymentRoutes(v1, h.Payment, h.PaymentWebhook, h.Admin.Payment, jwtAuth, adminAuth, settingService)
 
 	handler.RegisterPageRoutes(v1, cfg.Pricing.DataDir, gin.HandlerFunc(jwtAuth), gin.HandlerFunc(adminAuth), settingService)
+
+	// ChatGPT 图片本地存储静态文件服务
+	registerImageStaticRoute(r, cfg.Pricing.DataDir)
+}
+
+// registerImageStaticRoute registers a static file server for locally stored ChatGPT images.
+// Route: GET /images/*filepath → serves from {dataDir}/images/
+func registerImageStaticRoute(r *gin.Engine, dataDir string) {
+	imagesDir := filepath.Join(dataDir, "images")
+	if err := os.MkdirAll(imagesDir, 0755); err != nil {
+		log.Printf("Warning: Failed to create images directory %s: %v", imagesDir, err)
+	}
+	fileServer := http.StripPrefix("/images/", http.FileServer(http.Dir(imagesDir)))
+	r.GET("/images/*filepath", func(c *gin.Context) {
+		filepath := c.Param("filepath")
+		// Basic path traversal protection
+		cleaned := strings.ReplaceAll(filepath, "\\", "/")
+		if strings.Contains(cleaned, "..") {
+			c.Status(http.StatusNotFound)
+			return
+		}
+		fileServer.ServeHTTP(c.Writer, c.Request)
+	})
 }
